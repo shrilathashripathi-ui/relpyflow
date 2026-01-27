@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        String    @id @default(uuid())
+  email                     String    @unique
+  name                      String?
+  passwordHash              String?   @map("password_hash")
+  emailVerified             Boolean   @default(false) @map("email_verified")
+  verificationToken         String?   @map("verification_token")
+  verificationTokenExpires  DateTime? @map("verification_token_expires")
+  resetToken                String?   @map("reset_token")
+  resetTokenExpires         DateTime? @map("reset_token_expires")
+  
+  subscriptionPlan          String    @default("free") @map("subscription_plan")
+  subscriptionStatus        String    @default("trial") @map("subscription_status")
+  trialEndsAt               DateTime? @map("trial_ends_at")
+  subscriptionEndsAt        DateTime? @map("subscription_ends_at")
+  
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  instagramAccounts         InstagramAccount[]
+  notificationSettings      NotificationSettings?
+  subscriptions             Subscription[]
+  usageTracking             UsageTracking[]
+
+  @@map("users")
+}
+
+model InstagramAccount {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  igUserId            String?   @map("ig_user_id")
+  username            String
+  
+  sessionCookies      String?   @map("session_cookies")
+  csrfToken           String?   @map("csrf_token")
+  userAgent           String?   @map("user_agent")
+  assignedProxyIp     String?   @map("assigned_proxy_ip")
+  
+  status              String    @default("active")
+  lastActivityAt      DateTime? @map("last_activity_at")
+  lastActionBlockAt   DateTime? @map("last_action_block_at")
+  actionBlockCount    Int       @default(0) @map("action_block_count")
+  
+  accountAgeDays      Int       @default(0) @map("account_age_days")
+  warmupMode          Boolean   @default(true) @map("warmup_mode")
+  
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monitoredReels      MonitoredReel[]
+  keywords            Keyword[]
+  messageTemplates    MessageTemplate[]
+  dmQueue             DmQueue[]
+  dmHistory           DmHistory[]
+  rateLimitConfig     RateLimitConfig?
+  usernameFilters     UsernameFilter[]
+  dailyAnalytics      DailyAnalytics[]
+
+  @@unique([userId, username])
+  @@map("instagram_accounts")
+}
+
+model MonitoredReel {
+  id                      String    @id @default(uuid())
+  igAccountId             String    @map("ig_account_id")
+  mediaId                 String    @map("media_id")
+  mediaUrl                String?   @map("media_url")
+  thumbnailUrl            String?   @map("thumbnail_url")
+  caption                 String?
+  
+  isActive                Boolean   @default(true) @map("is_active")
+  lastCheckedAt           DateTime? @map("last_checked_at")
+  
+  customKeywords          String[]  @map("custom_keywords")
+  customMessageTemplateId String?   @map("custom_message_template_id")
+  
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  igAccount               InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+  dmQueue                 DmQueue[]
+  dmHistory               DmHistory[]
+
+  @@unique([igAccountId, mediaId])
+  @@map("monitored_reels")
+}
+
+model Keyword {
+  id              String   @id @default(uuid())
+  igAccountId     String   @map("ig_account_id")
+  keyword         String
+  isActive        Boolean  @default(true) @map("is_active")
+  caseSensitive   Boolean  @default(false) @map("case_sensitive")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  igAccount       InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@map("keywords")
+}
+
+model MessageTemplate {
+  id          String   @id @default(uuid())
+  igAccountId String   @map("ig_account_id")
+  name        String?
+  content     String
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  igAccount   InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@map("message_templates")
+}
+
+model DmQueue {
+  id                String    @id @default(uuid())
+  igAccountId       String    @map("ig_account_id")
+  monitoredReelId   String    @map("monitored_reel_id")
+  
+  recipientIgId     String    @map("recipient_ig_id")
+  recipientUsername String    @map("recipient_username")
+  
+  commentId         String    @map("comment_id")
+  commentText       String?   @map("comment_text")
+  detectedKeyword   String?   @map("detected_keyword")
+  
+  messageToSend     String    @map("message_to_send")
+  
+  priority          Int       @default(0)
+  scheduledAt       DateTime  @default(now()) @map("scheduled_at")
+  
+  status            String    @default("pending")
+  
+  retryCount        Int       @default(0) @map("retry_count")
+  errorCode         String?   @map("error_code")
+  errorMessage      String?   @map("error_message")
+  
+  createdAt         DateTime  @default(now()) @map("created_at")
+  processedAt       DateTime? @map("processed_at")
+  sentAt            DateTime? @map("sent_at")
+
+  igAccount         InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+  monitoredReel     MonitoredReel @relation(fields: [monitoredReelId], references: [id], onDelete: Cascade)
+
+  @@map("dm_queue")
+}
+
+model DmHistory {
+  id                String    @id @default(uuid())
+  igAccountId       String    @map("ig_account_id")
+  monitoredReelId   String?   @map("monitored_reel_id")
+  
+  recipientIgId     String    @map("recipient_ig_id")
+  recipientUsername String    @map("recipient_username")
+  
+  commentId         String?   @map("comment_id")
+  commentText       String?   @map("comment_text")
+  detectedKeyword   String?   @map("detected_keyword")
+  
+  messageSent       String?   @map("message_sent")
+  
+  status            String?
+  errorMessage      String?   @map("error_message")
+  
+  dmSentAt          DateTime  @default(now()) @map("dm_sent_at")
+
+  igAccount         InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+  monitoredReel     MonitoredReel? @relation(fields: [monitoredReelId], references: [id], onDelete: SetNull)
+
+  @@unique([igAccountId, monitoredReelId, recipientIgId])
+  @@map("dm_history")
+}
+
+model RateLimitConfig {
+  id                String   @id @default(uuid())
+  igAccountId       String   @unique @map("ig_account_id")
+  
+  maxDmsPerHour     Int      @default(10) @map("max_dms_per_hour")
+  maxDmsPerDay      Int      @default(50) @map("max_dms_per_day")
+  minDelaySeconds   Int      @default(30) @map("min_delay_seconds")
+  maxDelaySeconds   Int      @default(120) @map("max_delay_seconds")
+  
+  warmupEnabled     Boolean  @default(true) @map("warmup_enabled")
+  
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  igAccount         InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@map("rate_limit_config")
+}
+
+model NotificationSettings {
+  id                    String   @id @default(uuid())
+  userId                String   @unique @map("user_id")
+  
+  emailNotifications    Boolean  @default(true) @map("email_notifications")
+  emailActionBlock      Boolean  @default(true) @map("email_action_block")
+  emailSessionExpired   Boolean  @default(true) @map("email_session_expired")
+  emailDailyLimit       Boolean  @default(true) @map("email_daily_limit")
+  
+  notificationEmail     String?  @map("notification_email")
+  
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+model DailyAnalytics {
+  id                String   @id @default(uuid())
+  igAccountId       String   @map("ig_account_id")
+  date              DateTime @db.Date
+  
+  commentsDetected  Int      @default(0) @map("comments_detected")
+  dmsQueued         Int      @default(0) @map("dms_queued")
+  dmsSent           Int      @default(0) @map("dms_sent")
+  dmsFailed         Int      @default(0) @map("dms_failed")
+  actionBlocks      Int      @default(0) @map("action_blocks")
+
+  igAccount         InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([igAccountId, date])
+  @@map("daily_analytics")
+}
+
+model UsernameFilter {
+  id          String   @id @default(uuid())
+  igAccountId String   @map("ig_account_id")
+  username    String
+  filterType  String   @map("filter_type")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  igAccount   InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([igAccountId, username, filterType])
+  @@map("username_filters")
+}
+
+model Subscription {
+  id                           String    @id @default(uuid())
+  userId                       String    @map("user_id")
+  
+  plan                         String
+  status                       String
+  
+  paymentProvider              String?   @map("payment_provider")
+  paymentProviderSubscriptionId String?  @map("payment_provider_subscription_id")
+  
+  currentPeriodStart           DateTime? @map("current_period_start")
+  currentPeriodEnd             DateTime? @map("current_period_end")
+  
+  createdAt                    DateTime  @default(now()) @map("created_at")
+  updatedAt                    DateTime  @updatedAt @map("updated_at")
+
+  user                         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model UsageTracking {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  
+  periodStart          DateTime @db.Date @map("period_start")
+  periodEnd            DateTime @db.Date @map("period_end")
+  
+  dmsSentCount         Int      @default(0) @map("dms_sent_count")
+  igAccountsConnected  Int      @default(0) @map("ig_accounts_connected")
+  reelsMonitored       Int      @default(0) @map("reels_monitored")
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart])
+  @@map("usage_tracking")
+}
