@@ -1,83 +1,129 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import { automationAPI } from '../utils/api';
+import Sidebar from '../components/Sidebar';
+import { automationAPI, instagramAPI } from '../utils/api';
 
 const Automations = () => {
   const navigate = useNavigate();
   const [automations, setAutomations] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [expandedAutomation, setExpandedAutomation] = useState(null);
-  const [triggers, setTriggers] = useState({});
-  const [loadingTriggers, setLoadingTriggers] = useState({});
+  const [success, setSuccess] = useState('');
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    fetchAutomations();
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchData();
+    }
   }, []);
 
-  const fetchAutomations = async () => {
+  // Listen for account changes from sidebar
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedAccountId = localStorage.getItem('selectedAccountId');
+      if (savedAccountId && savedAccountId !== selectedAccountFilter) {
+        setSelectedAccountFilter(savedAccountId);
+      }
+    };
+
+    // Listen for storage events (from other tabs)
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also check periodically for same-tab changes (since storage event doesn't fire in same tab)
+    const interval = setInterval(() => {
+      const savedAccountId = localStorage.getItem('selectedAccountId');
+      if (savedAccountId && savedAccountId !== selectedAccountFilter && accounts.find(a => a.id === savedAccountId)) {
+        setSelectedAccountFilter(savedAccountId);
+      }
+    }, 500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [selectedAccountFilter, accounts]);
+
+  const fetchData = async () => {
     try {
-      const response = await automationAPI.getAll();
-      setAutomations(response.data.automations || []);
+      const [automationsRes, accountsRes] = await Promise.all([
+        automationAPI.getAll(),
+        instagramAPI.getAccounts()
+      ]);
+      setAutomations(automationsRes.data.automations || []);
+      const accountsList = accountsRes.data.accounts || [];
+      setAccounts(accountsList);
+
+      // Auto-filter by the selected account from sidebar
+      const savedAccountId = localStorage.getItem('selectedAccountId');
+      if (savedAccountId && accountsList.find(a => a.id === savedAccountId)) {
+        setSelectedAccountFilter(savedAccountId);
+      }
     } catch (err) {
       setError('Failed to load automations');
-      console.error('Error fetching automations:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggle = async (automationId) => {
+  // Filter automations by selected account
+  const filteredAutomations = selectedAccountFilter === 'all'
+    ? automations
+    : automations.filter(a => a.instagramAccountId === selectedAccountFilter);
+
+  const handleToggle = async (automationId, currentStatus) => {
     try {
-      await automationAPI.toggle(automationId);
-      // Update local state
-      setAutomations((prev) =>
-        prev.map((auto) =>
-          auto.id === automationId
-            ? { ...auto, isActive: !auto.isActive }
-            : auto
-        )
-      );
+      setError('');
+      const response = await automationAPI.toggle(automationId);
+      if (response.data) {
+        setAutomations((prev) =>
+          prev.map((auto) =>
+            auto.id === automationId
+              ? { ...auto, isActive: !auto.isActive }
+              : auto
+          )
+        );
+        setSuccess(currentStatus ? 'Automation paused' : 'Automation resumed');
+        setTimeout(() => setSuccess(''), 3000);
+      }
     } catch (err) {
-      setError('Failed to toggle automation');
+      // Don't let errors redirect - just show message
+      const errorMsg = err.response?.data?.message || 'Failed to toggle automation';
+      setError(errorMsg);
       console.error('Error toggling automation:', err);
+      setTimeout(() => setError(''), 5000);
     }
   };
 
-  const fetchTriggers = async (automationId) => {
-    if (triggers[automationId]) {
-      // If already loaded, just toggle expanded state
-      setExpandedAutomation(
-        expandedAutomation === automationId ? null : automationId
-      );
-      return;
-    }
+  const handleEdit = (automationId) => {
+    navigate(`/edit-automation/${automationId}`);
+  };
 
-    setLoadingTriggers((prev) => ({ ...prev, [automationId]: true }));
+  const handleDelete = async (automationId) => {
+    if (!window.confirm('Are you sure you want to delete this automation?')) return;
 
     try {
-      const response = await automationAPI.getTriggers(automationId);
-      setTriggers((prev) => ({
-        ...prev,
-        [automationId]: response.data.triggers || [],
-      }));
-      setExpandedAutomation(automationId);
+      await automationAPI.delete(automationId);
+      setAutomations((prev) => prev.filter((auto) => auto.id !== automationId));
+      setSuccess('Automation deleted');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      console.error('Error fetching triggers:', err);
-    } finally {
-      setLoadingTriggers((prev) => ({ ...prev, [automationId]: false }));
+      setError('Failed to delete automation');
+      console.error('Error deleting automation:', err);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1 ml-64 p-8">
           <div className="text-center py-12">
             <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-slate-400">Loading automations...</p>
+            <p className="mt-4 text-gray-500">Loading automations...</p>
           </div>
         </div>
       </div>
@@ -85,219 +131,209 @@ const Automations = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Navbar />
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Your Automations
-            </h1>
-            <p className="text-slate-400">
-              Manage and monitor your Instagram automation workflows
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/create-automation')}
-            className="btn-primary"
-          >
-            + Create New
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-6 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {automations.length === 0 ? (
-          <div className="card text-center py-12">
-            <svg
-              className="w-16 h-16 text-slate-600 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <h3 className="text-xl font-bold text-white mb-2">
-              No automations yet
-            </h3>
-            <p className="text-slate-400 mb-6">
-              Create your first automation to start automating Instagram DMs
-            </p>
+      <div className="flex-1 ml-64">
+        <div className="p-8">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold text-gray-800">Automations</h1>
+              {accounts.length > 0 && (
+                <select
+                  value={selectedAccountFilter}
+                  onChange={(e) => {
+                    setSelectedAccountFilter(e.target.value);
+                    // Also update localStorage so sidebar stays in sync
+                    if (e.target.value !== 'all') {
+                      localStorage.setItem('selectedAccountId', e.target.value);
+                    }
+                  }}
+                  className="px-4 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">All Accounts</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      @{account.username}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             <button
               onClick={() => navigate('/create-automation')}
-              className="btn-primary"
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-all flex items-center gap-2"
             >
-              Create Automation
+              + Create
             </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {automations.map((automation) => (
-              <div key={automation.id} className="card">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-xl font-bold text-white">
-                        {automation.name}
-                      </h3>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          automation.isActive
-                            ? 'bg-green-900/50 text-green-300'
-                            : 'bg-slate-700 text-slate-400'
-                        }`}
-                      >
-                        {automation.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <p className="text-slate-400 text-sm mb-3">
-                      Instagram: @{automation.instagramAccount?.username}
-                    </p>
 
-                    <div className="grid grid-cols-3 gap-4 mb-3">
-                      <div className="bg-slate-700/50 rounded-lg p-3">
-                        <p className="text-slate-400 text-xs mb-1">Keywords</p>
-                        <p className="text-white font-semibold">
-                          {automation.keywords?.length || 0}
-                        </p>
-                      </div>
-                      <div className="bg-slate-700/50 rounded-lg p-3">
-                        <p className="text-slate-400 text-xs mb-1">Triggered</p>
-                        <p className="text-white font-semibold">
-                          {automation.triggerCount || 0}
-                        </p>
-                      </div>
-                      <div className="bg-slate-700/50 rounded-lg p-3">
-                        <p className="text-slate-400 text-xs mb-1">DMs Sent</p>
-                        <p className="text-white font-semibold">
-                          {automation.dmSentCount || 0}
-                        </p>
-                      </div>
-                    </div>
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
 
-                    <div className="mb-3">
-                      <p className="text-slate-400 text-sm mb-1">Keywords:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {automation.keywords?.map((keyword, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-purple-900/30 text-purple-300 rounded text-sm"
+          {success && (
+            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {success}
+            </div>
+          )}
+
+          {/* Automations Table */}
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">IMAGE</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">NAME</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">STATUS</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">CREATED</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">LAST MODIFIED</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-500 text-sm">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAutomations.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="py-16">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                            {selectedAccountFilter === 'all' ? 'No automations yet' : 'No automations for this account'}
+                          </h3>
+                          <p className="text-gray-500 mb-4">Get started by creating your first automation.</p>
+                          <button
+                            onClick={() => navigate('/create-automation')}
+                            className="px-6 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-all"
                           >
-                            {keyword}
+                            + Create Automation
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAutomations.map((automation) => (
+                      <tr key={automation.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-4 px-6">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073z"/>
+                            </svg>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <p className="font-medium text-gray-800">{automation.name}</p>
+                          <p className="text-sm text-gray-500">@{automation.instagramAccount?.username}</p>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            automation.isActive
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {automation.isActive ? '● Running' : '○ Paused'}
                           </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <p className="text-slate-400 text-sm mb-1">Response:</p>
-                      <p className="text-slate-300 text-sm bg-slate-700/50 rounded p-2">
-                        {automation.responseMessage}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleToggle(automation.id)}
-                      className={`relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        automation.isActive ? 'bg-purple-600' : 'bg-slate-700'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          automation.isActive ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-700 pt-4">
-                  <button
-                    onClick={() => fetchTriggers(automation.id)}
-                    className="text-purple-400 hover:text-purple-300 text-sm font-semibold flex items-center space-x-1"
-                  >
-                    <span>
-                      {expandedAutomation === automation.id
-                        ? 'Hide Triggers'
-                        : 'View Triggers'}
-                    </span>
-                    <svg
-                      className={`w-4 h-4 transition-transform ${
-                        expandedAutomation === automation.id ? 'rotate-180' : ''
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {expandedAutomation === automation.id && (
-                    <div className="mt-4">
-                      {loadingTriggers[automation.id] ? (
-                        <div className="text-center py-4">
-                          <div className="inline-block w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                      ) : triggers[automation.id]?.length > 0 ? (
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
-                          {triggers[automation.id].map((trigger) => (
-                            <div
-                              key={trigger.id}
-                              className="bg-slate-700/50 rounded p-3 text-sm"
+                        </td>
+                        <td className="py-4 px-6 text-gray-500">
+                          {new Date(automation.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-4 px-6 text-gray-500">
+                          {new Date(automation.updatedAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            {/* Pause/Resume Button */}
+                            <button
+                              onClick={() => handleToggle(automation.id, automation.isActive)}
+                              className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 ${
+                                automation.isActive
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
                             >
-                              <div className="flex justify-between items-start mb-1">
-                                <p className="text-white font-semibold">
-                                  @{trigger.commenterUsername}
-                                </p>
-                                <span className="text-slate-400 text-xs">
-                                  {new Date(trigger.createdAt).toLocaleString()}
-                                </span>
-                              </div>
-                              <p className="text-slate-300 mb-2">
-                                {trigger.commentText}
-                              </p>
-                              <span
-                                className={`px-2 py-1 rounded text-xs ${
-                                  trigger.dmSent
-                                    ? 'bg-green-900/50 text-green-300'
-                                    : 'bg-yellow-900/50 text-yellow-300'
-                                }`}
-                              >
-                                {trigger.dmSent ? 'DM Sent' : 'Pending'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-slate-400 text-sm text-center py-4">
-                          No triggers yet
-                        </p>
-                      )}
-                    </div>
+                              {automation.isActive ? (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Pause
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Resume
+                                </>
+                              )}
+                            </button>
+                            {/* Leads Data */}
+                            <button
+                              onClick={() => navigate(`/automations/${automation.id}/leads`)}
+                              className="px-3 py-1.5 text-sm border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-50"
+                            >
+                              Leads
+                            </button>
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => handleEdit(automation.id)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                              title="Edit automation"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDelete(automation.id)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                              title="Delete automation"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {filteredAutomations.length > 0 && (
+              <div className="flex items-center justify-between p-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  Rows per page:
+                  <select className="border border-gray-200 rounded px-2 py-1">
+                    <option>10</option>
+                    <option>25</option>
+                    <option>50</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="w-8 h-8 flex items-center justify-center rounded bg-purple-600 text-white text-sm font-medium">
+                    1
+                  </button>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

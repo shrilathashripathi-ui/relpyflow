@@ -80,7 +80,7 @@ class InstagramAPI {
 
   async sendDirectMessage(recipientUserId, message) {
     console.log(`📤 Sending DM to user: ${recipientUserId}`);
-    
+
     try {
       const response = await axios.post(`${this.baseURL}/me/messages`, {
         recipient: { id: recipientUserId },
@@ -97,6 +97,52 @@ class InstagramAPI {
     } catch (error) {
       console.error('❌ Failed to send DM:', error.response?.data || error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Send a DM using account session (for web-based DM sending)
+   */
+  async sendDM(account, recipientUserId, message) {
+    console.log(`📤 Sending DM to ${recipientUserId} from @${account.username}`);
+
+    try {
+      // Use session-based API for DM sending
+      const sessionAPI = require('./commentAPI');
+      return await sessionAPI.sendDirectMessage(account, recipientUserId, message);
+    } catch (error) {
+      console.error('❌ Failed to send DM:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get DM inbox threads for an account
+   */
+  async getDMInbox(account) {
+    console.log(`📥 Fetching DM inbox for @${account.username}`);
+
+    try {
+      const sessionAPI = require('./commentAPI');
+      return await sessionAPI.getDMInbox(account);
+    } catch (error) {
+      console.error('❌ Failed to fetch DM inbox:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a user is following the account
+   */
+  async isUserFollowing(account, userId) {
+    console.log(`👀 Checking if ${userId} follows @${account.username}`);
+
+    try {
+      const sessionAPI = require('./commentAPI');
+      return await sessionAPI.checkFollowStatus(account, userId);
+    } catch (error) {
+      console.error('❌ Failed to check follow status:', error.message);
+      return false;
     }
   }
 }

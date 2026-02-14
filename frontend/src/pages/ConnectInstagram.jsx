@@ -1,17 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { instagramAPI } from '../utils/api';
+import api, { instagramAPI } from '../utils/api';
 
 const ConnectInstagram = () => {
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [directLoginLoading, setDirectLoginLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Direct login form
+  const [showDirectLogin, setShowDirectLogin] = useState(false);
+  const [directLoginForm, setDirectLoginForm] = useState({
+    username: '',
+    password: '',
+  });
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    fetchAccounts();
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchAccounts();
+    }
   }, []);
 
   const fetchAccounts = async () => {
@@ -32,8 +45,6 @@ const ConnectInstagram = () => {
     try {
       const response = await instagramAPI.getAuthUrl();
       const authUrl = response.data.authUrl;
-
-      // Open Instagram OAuth in a new window
       window.location.href = authUrl;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to get Instagram auth URL');
@@ -41,175 +52,244 @@ const ConnectInstagram = () => {
     }
   };
 
+  const handleDirectLogin = async (e) => {
+    e.preventDefault();
+    setDirectLoginLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await api.post('/instagram/direct-login', directLoginForm);
+      setSuccess(`Successfully connected @${response.data.username}!`);
+      setDirectLoginForm({ username: '', password: '' });
+      setShowDirectLogin(false);
+      fetchAccounts();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to connect Instagram');
+    } finally {
+      setDirectLoginLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (accountId, username) => {
+    if (!confirm(`Are you sure you want to disconnect @${username}?`)) {
+      return;
+    }
+
+    try {
+      await instagramAPI.deleteAccount(accountId);
+      setSuccess(`@${username} has been disconnected`);
+      fetchAccounts();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to disconnect account');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Connect Instagram Account
           </h1>
-          <p className="text-slate-400">
+          <p className="text-gray-500">
             Link your Instagram account to start automating DM responses
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {error}
           </div>
         )}
 
-        <div className="card mb-6">
-          <div className="flex items-start space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-              </svg>
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {success}
+          </div>
+        )}
+
+        {/* Connection Methods */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Direct Login - Recommended */}
+          <div className="bg-white rounded-2xl shadow-sm p-6 border-2 border-purple-200">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                Recommended
+              </span>
             </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-white mb-2">
-                Instagram OAuth Connection
-              </h3>
-              <p className="text-slate-400 mb-4">
-                Connect your Instagram Business or Creator account through official
-                Instagram OAuth. This allows ReplyFlow to monitor comments and send
-                direct messages on your behalf.
-              </p>
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                  Direct Instagram Login
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  Works with any Instagram account. Supports auto-reconnect when session expires.
+                </p>
+              </div>
+            </div>
+
+            {showDirectLogin ? (
+              <form onSubmit={handleDirectLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input
+                    type="text"
+                    value={directLoginForm.username}
+                    onChange={(e) => setDirectLoginForm(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter Instagram username"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={directLoginForm.password}
+                    onChange={(e) => setDirectLoginForm(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Enter Instagram password"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={directLoginLoading}
+                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {directLoginLoading ? 'Connecting...' : 'Connect'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectLogin(false)}
+                    className="px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
               <button
-                onClick={handleConnectInstagram}
-                disabled={connectLoading}
-                className="btn-primary"
+                onClick={() => setShowDirectLogin(true)}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               >
-                {connectLoading ? 'Connecting...' : 'Connect Instagram Account'}
+                Connect with Username & Password
               </button>
+            )}
+          </div>
+
+          {/* Facebook/Instagram OAuth */}
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex items-start gap-4 mb-4 mt-8">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                  Facebook OAuth
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  For Business/Creator accounts linked to a Facebook Page.
+                </p>
+              </div>
             </div>
+            <button
+              onClick={handleConnectInstagram}
+              disabled={connectLoading}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-50"
+            >
+              {connectLoading ? 'Connecting...' : 'Connect via Facebook'}
+            </button>
           </div>
         </div>
 
-        <div className="card mb-6">
-          <h3 className="text-xl font-bold text-white mb-4">Requirements</h3>
-          <ul className="space-y-3 text-slate-300">
-            <li className="flex items-start space-x-3">
-              <svg
-                className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Instagram Business or Creator account</span>
-            </li>
-            <li className="flex items-start space-x-3">
-              <svg
-                className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Facebook Page linked to your Instagram account</span>
-            </li>
-            <li className="flex items-start space-x-3">
-              <svg
-                className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Permission to manage Instagram messages and comments</span>
-            </li>
-          </ul>
-        </div>
-
+        {/* Connected Accounts */}
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-slate-400">Loading accounts...</p>
+            <p className="mt-4 text-gray-500">Loading accounts...</p>
           </div>
         ) : accounts.length > 0 ? (
-          <div className="card">
-            <h3 className="text-xl font-bold text-white mb-4">
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
               Connected Accounts
             </h3>
             <div className="space-y-3">
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-center justify-between p-4 bg-slate-700 rounded-lg border border-slate-600"
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                       <span className="text-white font-bold text-lg">
                         {account.username?.charAt(0).toUpperCase() || 'I'}
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-gray-800">
                         @{account.username}
                       </p>
-                      <p className="text-sm text-slate-400">
-                        Connected on{' '}
-                        {new Date(account.createdAt).toLocaleDateString()}
+                      <p className="text-sm text-gray-500">
+                        Connected {new Date(account.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-3 py-1 bg-green-900/50 text-green-300 rounded-full text-sm">
-                      Active
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      account.status === 'active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {account.status === 'active' ? 'Active' : account.status}
                     </span>
+                    <button
+                      onClick={() => handleDeleteAccount(account.id, account.username)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Disconnect account"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="card text-center py-12">
-            <svg
-              className="w-16 h-16 text-slate-600 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <h3 className="text-xl font-bold text-white mb-2">
+          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
               No accounts connected yet
             </h3>
-            <p className="text-slate-400">
-              Click the button above to connect your first Instagram account
+            <p className="text-gray-500">
+              Use one of the methods above to connect your Instagram account
             </p>
           </div>
         )}
+
       </div>
     </div>
   );

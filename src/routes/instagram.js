@@ -2,60 +2,488 @@ const express = require('express');
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
+const { encrypt } = require('../utils/encryption');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Start OAuth
+// Start OAuth - Using Facebook Login for Instagram Graph API
 router.get('/auth', protect, (req, res) => {
-  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${process.env.INSTAGRAM_REDIRECT_URI}&scope=user_profile,user_media&response_type=code`;
+  // For Instagram Graph API (Business/Creator accounts), we use Facebook OAuth
+  // This gives access to instagram_basic, instagram_manage_comments, instagram_manage_messages
+  const scopes = [
+    'instagram_basic',
+    'instagram_manage_comments',
+    'instagram_manage_messages',
+    'pages_show_list',
+    'pages_read_engagement',
+    'pages_manage_metadata',
+    'pages_read_user_content',
+    'business_management'
+  ].join(',');
+
+  // Add auth_type=rerequest to force re-asking for permissions
+  const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URI)}&scope=${scopes}&response_type=code&auth_type=rerequest`;
+
   res.json({ authUrl });
 });
 
-// OAuth Callback
+// OAuth Callback - Handle Facebook OAuth response
 router.get('/callback', async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code, error, error_description } = req.query;
 
-    // Exchange code for access token
-    const tokenResponse = await axios.post(
-      'https://api.instagram.com/oauth/access_token',
-      new URLSearchParams({
+    // Handle OAuth errors
+    if (error) {
+      console.error('OAuth Error:', error, error_description);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=${encodeURIComponent(error_description || error)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No authorization code received`);
+    }
+
+    // Step 1: Exchange code for Facebook access token
+    const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+      params: {
         client_id: process.env.INSTAGRAM_CLIENT_ID,
         client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
-        grant_type: 'authorization_code',
         redirect_uri: process.env.INSTAGRAM_REDIRECT_URI,
         code,
-      })
-    );
+      }
+    });
 
-    const { access_token, user_id } = tokenResponse.data;
+    const fbAccessToken = tokenResponse.data.access_token;
 
-    // Get user info
-    const userInfo = await axios.get(
-      `https://graph.instagram.com/me?fields=id,username&access_token=${access_token}`
-    );
+    // Step 2: Get Facebook Pages the user manages
+    const pagesResponse = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+      params: { access_token: fbAccessToken }
+    });
 
-    // Store in database (you'll need userId from JWT in production)
-    // For now, redirect with token
-    res.redirect(`http://localhost:3000/connect-success?token=${access_token}&userId=${user_id}&username=${userInfo.data.username}`);
+    console.log('=== DEBUG: Pages Response ===');
+    console.log(JSON.stringify(pagesResponse.data, null, 2));
+
+    const pages = pagesResponse.data.data;
+
+    if (!pages || pages.length === 0) {
+      // Let's also check what permissions we have
+      const debugResponse = await axios.get('https://graph.facebook.com/v18.0/me/permissions', {
+        params: { access_token: fbAccessToken }
+      });
+      console.log('=== DEBUG: Permissions ===');
+      console.log(JSON.stringify(debugResponse.data, null, 2));
+
+      // Also try to get user info
+      const meResponse = await axios.get('https://graph.facebook.com/v18.0/me', {
+        params: {
+          access_token: fbAccessToken,
+          fields: 'id,name,accounts{id,name,access_token,instagram_business_account}'
+        }
+      });
+      console.log('=== DEBUG: Me Response with accounts ===');
+      console.log(JSON.stringify(meResponse.data, null, 2));
+
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No Facebook Pages found. Please connect a Facebook Page to your Instagram account.`);
+    }
+
+    // Step 3: Get Instagram Business Account for each page
+    let instagramAccount = null;
+    let pageAccessToken = null;
+
+    for (const page of pages) {
+      try {
+        const igResponse = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
+          params: {
+            fields: 'instagram_business_account',
+            access_token: page.access_token
+          }
+        });
+
+        if (igResponse.data.instagram_business_account) {
+          instagramAccount = igResponse.data.instagram_business_account;
+          pageAccessToken = page.access_token;
+          break;
+        }
+      } catch (err) {
+        console.log(`No IG account for page ${page.name}`);
+      }
+    }
+
+    if (!instagramAccount) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No Instagram Business account found. Please link an Instagram Business/Creator account to your Facebook Page.`);
+    }
+
+    // Step 4: Get Instagram account details
+    const igDetailsResponse = await axios.get(`https://graph.facebook.com/v18.0/${instagramAccount.id}`, {
+      params: {
+        fields: 'id,username,profile_picture_url,followers_count',
+        access_token: pageAccessToken
+      }
+    });
+
+    const igDetails = igDetailsResponse.data;
+
+    // Redirect to frontend with account info
+    const params = new URLSearchParams({
+      success: 'true',
+      igUserId: igDetails.id,
+      username: igDetails.username,
+      accessToken: pageAccessToken, // Page access token is used for Instagram API
+    });
+
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?${params.toString()}`);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('OAuth Callback Error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error?.message || error.message;
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=${encodeURIComponent(errorMsg)}`);
+  }
+});
+
+// Direct Instagram Login (Session-based with Puppeteer)
+router.post('/direct-login', protect, async (req, res) => {
+  const puppeteer = require('puppeteer-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  puppeteer.use(StealthPlugin());
+
+  let browser = null;
+
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    console.log(`🔐 Attempting direct login for @${username}...`);
+
+    // Launch headless browser
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-blink-features=AutomationControlled'
+      ]
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    // Go to Instagram login page
+    console.log('📱 Loading Instagram login page...');
+    await page.goto('https://www.instagram.com/accounts/login/', {
+      waitUntil: 'networkidle0',
+      timeout: 60000
+    });
+
+    // Wait a bit for page to fully load
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Try to accept cookies if dialog appears
+    try {
+      const acceptCookiesBtn = await page.$('button[tabindex="0"]');
+      if (acceptCookiesBtn) {
+        const btnText = await page.evaluate(el => el.textContent, acceptCookiesBtn);
+        if (btnText && (btnText.includes('Allow') || btnText.includes('Accept') || btnText.includes('Only Allow'))) {
+          console.log('🍪 Accepting cookies dialog...');
+          await acceptCookiesBtn.click();
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    } catch (e) {
+      console.log('No cookie dialog found, continuing...');
+    }
+
+    // Wait for login form with multiple possible selectors
+    console.log('⏳ Waiting for login form...');
+    let usernameInput = null;
+
+    // Try different selectors
+    const selectors = [
+      'input[name="username"]',
+      'input[aria-label="Phone number, username, or email"]',
+      'input[aria-label="Username"]',
+      'input[type="text"]'
+    ];
+
+    for (const selector of selectors) {
+      try {
+        await page.waitForSelector(selector, { timeout: 5000 });
+        usernameInput = await page.$(selector);
+        if (usernameInput) {
+          console.log(`✅ Found input with selector: ${selector}`);
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (!usernameInput) {
+      // Take screenshot for debugging
+      console.log('❌ Could not find login form. Page content:');
+      const pageContent = await page.content();
+      console.log(pageContent.substring(0, 500));
+      await browser.close();
+      return res.status(400).json({
+        error: 'Could not load Instagram login page. Please try again or use Facebook connection.'
+      });
+    }
+
+    // Fill in credentials
+    console.log('✏️ Entering credentials...');
+    await usernameInput.click({ clickCount: 3 }); // Select all
+    await usernameInput.type(username, { delay: 100 });
+
+    // Find password field
+    const passwordInput = await page.$('input[name="password"]') ||
+                          await page.$('input[type="password"]');
+
+    if (!passwordInput) {
+      await browser.close();
+      return res.status(400).json({ error: 'Could not find password field' });
+    }
+
+    await passwordInput.click();
+    await passwordInput.type(password, { delay: 100 });
+
+    // Find and click login button
+    console.log('🔘 Clicking login button...');
+    const loginButton = await page.$('button[type="submit"]');
+
+    if (loginButton) {
+      await loginButton.click();
+    } else {
+      // Try pressing Enter as fallback
+      console.log('No submit button found, pressing Enter...');
+      await page.keyboard.press('Enter');
+    }
+
+    // Wait for navigation or error
+    console.log('⏳ Waiting for login response...');
+    await new Promise(resolve => setTimeout(resolve, 7000));
+
+    // Check current URL
+    const currentUrl = page.url();
+    console.log('📍 Current URL:', currentUrl);
+
+    // Check for error messages - Instagram shows errors in multiple ways
+    const errorMessage = await page.evaluate(() => {
+      // Try multiple selectors for error messages
+      const selectors = [
+        '[role="alert"]',
+        '#slfErrorAlert',
+        'p[data-testid="login-error-message"]',
+        '[data-testid="login-error-message"]',
+        'div[role="alert"] span',
+        '#loginForm span[id]',
+        'form[id="loginForm"] div[role="alert"]',
+        'span.x1lliihq.x1plvlek.xryxfnj', // Instagram's error text class
+        'div._ab2z span' // Another common error container
+      ];
+
+      for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el && el.textContent && el.textContent.trim().length > 0) {
+          const text = el.textContent.trim();
+          // Check if it looks like an error message
+          if (text.toLowerCase().includes('sorry') ||
+              text.toLowerCase().includes('incorrect') ||
+              text.toLowerCase().includes('wrong') ||
+              text.toLowerCase().includes('password') ||
+              text.toLowerCase().includes('username') ||
+              text.toLowerCase().includes('error') ||
+              text.toLowerCase().includes('try again') ||
+              text.toLowerCase().includes('wasn\'t')) {
+            return text;
+          }
+        }
+      }
+
+      // Also check for any visible error-like text in the form area
+      const formArea = document.querySelector('form') || document.querySelector('#loginForm');
+      if (formArea) {
+        const spans = formArea.querySelectorAll('span');
+        for (const span of spans) {
+          const text = span.textContent?.trim();
+          if (text && (
+            text.toLowerCase().includes('sorry') ||
+            text.toLowerCase().includes('incorrect') ||
+            text.toLowerCase().includes('wrong password') ||
+            text.toLowerCase().includes('doesn\'t match') ||
+            text.toLowerCase().includes('wasn\'t right')
+          )) {
+            return text;
+          }
+        }
+      }
+
+      return null;
+    });
+
+    if (errorMessage) {
+      console.log('❌ Login error detected:', errorMessage);
+      await browser.close();
+
+      // Provide clearer error messages
+      let userFriendlyError = errorMessage;
+      if (errorMessage.toLowerCase().includes('password') ||
+          errorMessage.toLowerCase().includes('incorrect') ||
+          errorMessage.toLowerCase().includes('wrong')) {
+        userFriendlyError = 'Invalid username or password. Please check your credentials and try again.';
+      }
+
+      return res.status(401).json({ error: userFriendlyError });
+    }
+
+    // Check if we need 2FA or checkpoint
+    if (currentUrl.includes('challenge') || currentUrl.includes('checkpoint') || currentUrl.includes('two_factor')) {
+      console.log('⚠️ Challenge/2FA required');
+      await browser.close();
+      return res.status(400).json({
+        error: 'Instagram requires verification (2FA or security checkpoint). Please use Facebook connection instead.'
+      });
+    }
+
+    // Check if login was successful (redirected away from login page)
+    if (currentUrl.includes('/accounts/login')) {
+      console.log('❌ Still on login page - credentials may be wrong');
+
+      // Try one more time to find error message after waiting
+      const finalErrorCheck = await page.evaluate(() => {
+        const allText = document.body.innerText;
+        if (allText.includes('Sorry, your password was incorrect') ||
+            allText.includes('password you entered is incorrect') ||
+            allText.includes('username you entered doesn\'t belong')) {
+          return 'Invalid username or password. Please check your credentials and try again.';
+        }
+        if (allText.includes('Please wait a few minutes')) {
+          return 'Too many login attempts. Please wait a few minutes before trying again.';
+        }
+        return null;
+      });
+
+      await browser.close();
+      return res.status(401).json({
+        error: finalErrorCheck || 'Invalid username or password. Please check your credentials and try again.'
+      });
+    }
+
+    // Extract cookies
+    console.log('🍪 Extracting session cookies...');
+    const cookies = await page.cookies();
+
+    const sessionid = cookies.find(c => c.name === 'sessionid')?.value;
+    const csrftoken = cookies.find(c => c.name === 'csrftoken')?.value;
+    const ds_user_id = cookies.find(c => c.name === 'ds_user_id')?.value;
+
+    if (!sessionid) {
+      console.log('❌ No session cookie found');
+      await browser.close();
+      return res.status(400).json({ error: 'Login failed - no session created. Try Facebook connection.' });
+    }
+
+    // Format cookies for storage
+    const sessionCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+    await browser.close();
+    browser = null;
+
+    console.log('✅ Login successful! Saving account...');
+
+    // Check if account already exists for ANY user (Instagram accounts should be unique)
+    const existingAccount = await prisma.instagramAccount.findFirst({
+      where: { username: username }
+    });
+
+    if (existingAccount) {
+      if (existingAccount.userId === req.user.id) {
+        // Same user - update the session instead
+        await prisma.instagramAccount.update({
+          where: { id: existingAccount.id },
+          data: {
+            sessionCookies,
+            csrfToken: csrftoken,
+            status: 'active',
+            encryptedPassword: encrypt(password),
+          }
+        });
+        return res.status(200).json({
+          success: true,
+          username: username,
+          message: `Session refreshed for @${username}`,
+        });
+      } else {
+        // Different user owns this account
+        return res.status(400).json({
+          error: `@${username} is already connected to another account.`
+        });
+      }
+    }
+
+    // Encrypt password for auto re-login capability
+    const encryptedPassword = encrypt(password);
+
+    // Save to database with encrypted password for auto re-login
+    const account = await prisma.instagramAccount.create({
+      data: {
+        userId: req.user.id,
+        igUserId: ds_user_id,
+        username,
+        sessionCookies,
+        csrfToken: csrftoken,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        status: 'active',
+        encryptedPassword: encryptedPassword,
+        autoReloginEnabled: true, // Enable auto re-login by default
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      username: account.username,
+      message: `Successfully connected @${username}`,
+      autoReloginEnabled: true
+    });
+
+  } catch (error) {
+    console.error('Direct login error:', error.message);
+
+    if (browser) {
+      await browser.close();
+    }
+
+    // Check for unique constraint (account already exists)
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'This Instagram account is already connected' });
+    }
+
+    // Timeout error
+    if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+      return res.status(400).json({ error: 'Login timed out. Instagram may be slow. Please try again.' });
+    }
+
+    res.status(500).json({ error: 'Failed to connect Instagram. Please try again or use Facebook connection.' });
   }
 });
 
 // Save Instagram Account
 router.post('/account', protect, async (req, res) => {
   try {
-    const { accessToken, instagramUserId, username } = req.body;
+    const { igUserId, username, sessionCookies, csrfToken } = req.body;
 
     const account = await prisma.instagramAccount.create({
       data: {
         userId: req.user.id,
-        instagramUserId,
+        igUserId,
         username,
-        accessToken,
-        status: 'ACTIVE',
+        sessionCookies,
+        csrfToken,
+        status: 'active',
       },
     });
 
@@ -65,9 +493,43 @@ router.post('/account', protect, async (req, res) => {
   }
 });
 
+// Delete/Disconnect Instagram Account
+router.delete('/account/:id', protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the account and verify ownership
+    const account = await prisma.instagramAccount.findFirst({
+      where: {
+        id,
+        userId: req.user.id
+      }
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    // Delete the account
+    await prisma.instagramAccount.delete({
+      where: { id }
+    });
+
+    res.json({
+      success: true,
+      message: `@${account.username} has been disconnected`
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get Connected Accounts
 router.get('/accounts', protect, async (req, res) => {
   try {
+    console.log('📱 Fetching accounts for user:', req.user.id, req.user.email);
+
     const accounts = await prisma.instagramAccount.findMany({
       where: { userId: req.user.id },
       select: {
@@ -78,8 +540,89 @@ router.get('/accounts', protect, async (req, res) => {
       },
     });
 
+    console.log('📱 Found accounts:', accounts.length, accounts.map(a => a.username));
     res.json({ accounts });
   } catch (error) {
+    console.error('📱 Error fetching accounts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Posts/Reels for an account
+router.get('/accounts/:id/media', protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get the account and verify ownership
+    const account = await prisma.instagramAccount.findFirst({
+      where: { id, userId: req.user.id }
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (!account.sessionCookies) {
+      return res.status(400).json({ error: 'Account session not available. Please reconnect.' });
+    }
+
+    // Fetch media from Instagram
+    const headers = {
+      'User-Agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Cookie': account.sessionCookies,
+      'X-CSRFToken': account.csrfToken,
+      'X-IG-App-ID': '936619743392459',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': '*/*',
+      'Referer': 'https://www.instagram.com/',
+    };
+
+    const response = await axios.get(
+      `https://www.instagram.com/api/v1/feed/user/${account.igUserId}/`,
+      {
+        headers,
+        params: { count: 20 },
+        timeout: 30000
+      }
+    );
+
+    // Check for HTML response (session issue)
+    if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE')) {
+      return res.status(401).json({
+        error: 'Session expired or blocked. Please reconnect your account.',
+        code: 'SESSION_EXPIRED'
+      });
+    }
+
+    const items = response.data?.items || [];
+
+    // Format media for frontend
+    const media = items.map(item => ({
+      id: item.pk?.toString() || item.id,
+      code: item.code,
+      type: item.media_type === 1 ? 'photo' : item.media_type === 2 ? 'video' : 'carousel',
+      thumbnailUrl: item.image_versions2?.candidates?.[0]?.url ||
+                    item.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url ||
+                    null,
+      caption: item.caption?.text?.substring(0, 100) || '',
+      likeCount: item.like_count || 0,
+      commentCount: item.comment_count || 0,
+      takenAt: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
+      url: `https://www.instagram.com/p/${item.code}/`
+    }));
+
+    res.json({ media });
+
+  } catch (error) {
+    console.error('Fetch media error:', error.message);
+
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return res.status(401).json({
+        error: 'Session expired. Please reconnect your account.',
+        code: 'SESSION_EXPIRED'
+      });
+    }
+
     res.status(500).json({ error: error.message });
   }
 });
