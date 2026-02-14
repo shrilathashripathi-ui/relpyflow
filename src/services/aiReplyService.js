@@ -3,7 +3,8 @@
  * Generates personalized responses based on comment context
  */
 
-const OpenAI = require('openai');
+let OpenAI;
+try { OpenAI = require('openai'); } catch (e) { OpenAI = null; }
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
