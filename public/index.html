@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReplyFlow - Turn Comments into Customers | Instagram Auto-DM</title>
+  <meta name="description" content="ReplyFlow automatically sends DMs to commenters on your Instagram posts and reels. Turn every comment into a lead with keyword-triggered automation." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a2e; background: #fff; line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+
+    /* Navbar */
+    .nav { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+    .nav-logo { font-size: 24px; font-weight: 800; color: #7c3aed; display: flex; align-items: center; gap: 8px; }
+    .nav-logo span { background: linear-gradient(135deg, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a { font-weight: 500; color: #64748b; transition: color 0.2s; }
+    .nav-links a:hover { color: #7c3aed; }
+    .btn-primary { background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff !important; padding: 10px 24px; border-radius: 12px; font-weight: 600; transition: transform 0.2s, box-shadow 0.2s; display: inline-block; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(124, 58, 237, 0.3); }
+    .btn-outline { border: 2px solid #7c3aed; color: #7c3aed !important; padding: 10px 24px; border-radius: 12px; font-weight: 600; transition: all 0.2s; display: inline-block; }
+    .btn-outline:hover { background: #7c3aed; color: #fff !important; }
+
+    /* Hero */
+    .hero { text-align: center; max-width: 900px; margin: 60px auto 0; padding: 0 24px; }
+    .hero-badge { display: inline-block; background: #f0e7ff; color: #7c3aed; padding: 8px 20px; border-radius: 50px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    .hero h1 { font-size: clamp(36px, 5vw, 64px); font-weight: 900; line-height: 1.1; margin-bottom: 24px; }
+    .hero h1 .gradient { background: linear-gradient(135deg, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 20px; color: #64748b; max-width: 650px; margin: 0 auto 40px; }
+    .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .hero-buttons .btn-primary { padding: 16px 40px; font-size: 18px; }
+    .hero-buttons .btn-outline { padding: 16px 40px; font-size: 18px; }
+
+    /* Stats */
+    .stats { display: flex; justify-content: center; gap: 60px; margin: 80px auto; padding: 0 24px; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat-number { font-size: 42px; font-weight: 900; background: linear-gradient(135deg, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { color: #64748b; font-weight: 500; margin-top: 4px; }
+
+    /* How it Works */
+    .section { max-width: 1200px; margin: 0 auto; padding: 80px 24px; }
+    .section-title { text-align: center; font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+    .section-subtitle { text-align: center; color: #64748b; font-size: 18px; margin-bottom: 60px; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 40px; }
+    .step { text-align: center; padding: 40px 24px; border-radius: 20px; background: #fafafe; border: 1px solid #f0f0f5; }
+    .step-icon { width: 64px; height: 64px; background: linear-gradient(135deg, #7c3aed, #ec4899); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 20px; }
+    .step h3 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .step p { color: #64748b; font-size: 15px; }
+
+    /* Features */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; }
+    .feature-card { background: #fff; border: 1px solid #f0f0f5; border-radius: 20px; padding: 32px; transition: transform 0.2s, box-shadow 0.2s; }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
+    .feature-icon { font-size: 36px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { color: #64748b; font-size: 15px; }
+
+    /* Pricing */
+    .pricing-bg { background: linear-gradient(180deg, #f8f5ff 0%, #fff 100%); }
+    .pricing-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; max-width: 800px; margin: 0 auto; }
+    .pricing-card { background: #fff; border-radius: 24px; padding: 40px; border: 2px solid #f0f0f5; position: relative; }
+    .pricing-card.popular { border-color: #7c3aed; box-shadow: 0 20px 60px rgba(124, 58, 237, 0.15); }
+    .popular-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; padding: 6px 20px; border-radius: 50px; font-size: 13px; font-weight: 700; }
+    .pricing-card h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .price { font-size: 48px; font-weight: 900; margin-bottom: 8px; }
+    .price span { font-size: 18px; font-weight: 500; color: #64748b; }
+    .pricing-features { list-style: none; margin: 24px 0 32px; }
+    .pricing-features li { padding: 8px 0; display: flex; align-items: center; gap: 10px; font-size: 15px; }
+    .pricing-features li .check { color: #22c55e; font-weight: 700; }
+    .pricing-features li .cross { color: #d4d4d8; }
+    .pricing-card .btn-primary { width: 100%; text-align: center; padding: 14px; font-size: 16px; border: none; cursor: pointer; }
+
+    /* CTA */
+    .cta { text-align: center; background: linear-gradient(135deg, #7c3aed, #ec4899); border-radius: 32px; padding: 80px 40px; max-width: 1000px; margin: 80px auto; color: #fff; }
+    .cta h2 { font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+    .cta p { font-size: 18px; opacity: 0.9; margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .cta .btn-white { background: #fff; color: #7c3aed; padding: 16px 40px; border-radius: 12px; font-weight: 700; font-size: 18px; display: inline-block; transition: transform 0.2s; }
+    .cta .btn-white:hover { transform: translateY(-2px); }
+
+    /* Footer */
+    .footer { max-width: 1200px; margin: 0 auto; padding: 60px 24px; border-top: 1px solid #f0f0f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+    .footer-logo { font-size: 20px; font-weight: 800; color: #7c3aed; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { color: #64748b; font-size: 14px; }
+    .footer-links a:hover { color: #7c3aed; }
+    .footer-copy { color: #94a3b8; font-size: 13px; width: 100%; text-align: center; margin-top: 20px; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .stats { gap: 30px; }
+      .hero-buttons { flex-direction: column; align-items: center; }
+      .footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="nav">
+    <a href="/" class="nav-logo">💬 <span>ReplyFlow</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://app.replyflows.in/login" class="btn-outline">Login</a>
+      <a href="https://app.replyflows.in/register" class="btn-primary">Get Started Free</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">🚀 Automate your Instagram DMs in minutes</div>
+    <h1>Turn Reel Comments into <span class="gradient">Paying Customers</span></h1>
+    <p>ReplyFlow monitors your Instagram posts and reels for keyword comments, then automatically sends personalized DMs to every commenter — turning engagement into leads, 24/7.</p>
+    <div class="hero-buttons">
+      <a href="https://app.replyflows.in/register" class="btn-primary">Start Free — No Card Needed</a>
+      <a href="#how-it-works" class="btn-outline">See How It Works</a>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-number">10K+</div>
+      <div class="stat-label">DMs automated</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">500+</div>
+      <div class="stat-label">Creators & Brands</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">3x</div>
+      <div class="stat-label">More leads from Reels</div>
+    </div>
+  </div>
+
+  <!-- How it Works -->
+  <section id="how-it-works" class="section">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-subtitle">Set up once and let ReplyFlow work for you around the clock.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-icon">1️⃣</div>
+        <h3>Connect Your Account</h3>
+        <p>Link your Instagram business or creator account securely through the official Instagram API.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">2️⃣</div>
+        <h3>Set Your Keywords</h3>
+        <p>Choose which comments trigger a DM. For example, anyone who comments "link" or "price" gets a message automatically.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">3️⃣</div>
+        <h3>Craft Your DM</h3>
+        <p>Write a personalized message with links, offers, or a conversation flow to capture leads and drive sales.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">4️⃣</div>
+        <h3>Watch Leads Roll In</h3>
+        <p>ReplyFlow sends DMs instantly to every matching commenter. Track analytics, collect emails, and export leads.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="section">
+    <h2 class="section-title">Powerful Features</h2>
+    <p class="section-subtitle">Everything you need to convert Instagram engagement into revenue.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>Keyword Triggers</h3>
+        <p>Set unlimited keywords per automation. When someone comments with your keyword, they get a DM instantly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Smart DM Conversations</h3>
+        <p>Build multi-step conversation flows that qualify leads, collect information, and guide users to action.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Analytics Dashboard</h3>
+        <p>Track DMs sent, response rates, lead collection, and automation performance in real-time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>Lead Collection</h3>
+        <p>Capture emails, phone numbers, and custom fields through conversational DM flows. Export as CSV anytime.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Re-trigger Old Posts</h3>
+        <p>Run automations on existing posts and reels to capture comments you may have missed. Maximize every viral moment.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Official Instagram API</h3>
+        <p>Built on Meta's official API for maximum reliability. No risk of account bans or shadow restrictions.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="section pricing-bg">
+    <h2 class="section-title">Simple Pricing</h2>
+    <p class="section-subtitle">Start free, upgrade when you're ready to scale.</p>
+    <div class="pricing-cards">
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="price">₹0 <span>/month</span></div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> 1,000 DMs per month</li>
+          <li><span class="check">✓</span> 3 Automations</li>
+          <li><span class="check">✓</span> 1 Instagram Account</li>
+          <li><span class="check">✓</span> Comment Replies</li>
+          <li><span class="cross">✗</span> <span style="color:#a1a1aa">Ask for Follow</span></li>
+          <li><span class="cross">✗</span> <span style="color:#a1a1aa">Re-trigger</span></li>
+          <li><span class="cross">✗</span> <span style="color:#a1a1aa">Lead Collection</span></li>
+        </ul>
+        <a href="https://app.replyflows.in/register" class="btn-primary" style="background:#e2e8f0;color:#475569;">Get Started Free</a>
+      </div>
+      <div class="pricing-card popular">
+        <div class="popular-badge">MOST POPULAR</div>
+        <h3>Pro</h3>
+        <div class="price">₹499 <span>/month</span></div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> <strong>Unlimited DMs</strong></li>
+          <li><span class="check">✓</span> <strong>Unlimited Automations</strong></li>
+          <li><span class="check">✓</span> 5 Instagram Accounts</li>
+          <li><span class="check">✓</span> Comment Replies</li>
+          <li><span class="check">✓</span> Ask for Follow</li>
+          <li><span class="check">✓</span> Re-trigger Old Posts</li>
+          <li><span class="check">✓</span> Lead Collection</li>
+          <li><span class="check">✓</span> AI-Powered Replies</li>
+          <li><span class="check">✓</span> Priority Support</li>
+        </ul>
+        <a href="https://app.replyflows.in/register" class="btn-primary">Start 14-Day Free Trial</a>
+        <p style="text-align:center;color:#94a3b8;font-size:13px;margin-top:12px;">UPI, Cards & Net Banking accepted</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div style="padding: 0 24px;">
+    <div class="cta">
+      <h2>Ready to Automate Your Instagram DMs?</h2>
+      <p>Join hundreds of creators and brands already turning comments into customers with ReplyFlow.</p>
+      <a href="https://app.replyflows.in/register" class="btn-white">Get Started Free →</a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-logo">💬 ReplyFlow</div>
+    <div class="footer-links">
+      <a href="/privacy-policy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/data-deletion">Data Deletion</a>
+      <a href="mailto:support@replyflows.in">Contact</a>
+    </div>
+    <div class="footer-copy">© 2025 ReplyFlow. All rights reserved.</div>
+  </footer>
+
+</body>
+</html>
