@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
+const razorpayService = require('../services/razorpayService');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -10,6 +11,7 @@ const PLANS = {
   free: {
     name: 'Free',
     price: 0,
+    currency: 'INR',
     features: {
       dmsPerMonth: 1000,
       automations: 3,
@@ -23,7 +25,8 @@ const PLANS = {
   },
   pro: {
     name: 'Pro',
-    price: 7.99,
+    price: 499,
+    currency: 'INR',
     features: {
       dmsPerMonth: -1, // Unlimited
       automations: -1, // Unlimited
@@ -121,49 +124,122 @@ router.get('/check-feature/:feature', protect, async (req, res) => {
   }
 });
 
-// Upgrade to Pro (creates checkout session - placeholder for payment integration)
+// Upgrade to Pro - Creates Razorpay subscription for checkout
 router.post('/upgrade', protect, async (req, res) => {
   try {
-    // In production, this would create a Stripe/PayPal checkout session
-    // For now, we'll just create a mock subscription
-
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
+      where: { id: req.user.id },
+      include: {
+        subscriptions: {
+          where: { status: 'active', paymentProvider: 'razorpay' },
+          take: 1
+        }
+      }
     });
 
-    if (user.subscriptionPlan === 'pro') {
+    if (user.subscriptionPlan === 'pro' && user.subscriptionStatus === 'active') {
       return res.status(400).json({ error: 'You are already on the Pro plan' });
     }
 
-    // Create subscription record
+    // Create Razorpay subscription
+    const razorpaySubscription = await razorpayService.createSubscription({
+      planId: process.env.RAZORPAY_PLAN_ID,
+      totalCount: 120,
+      customerEmail: user.email,
+      notes: { userId: String(user.id), userEmail: user.email },
+    });
+
+    // Store pending subscription in DB
     const subscription = await prisma.subscription.create({
       data: {
         userId: req.user.id,
         plan: 'pro',
-        status: 'active',
-        paymentProvider: 'manual', // Would be 'stripe' or 'paypal' in production
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        status: 'pending',
+        paymentProvider: 'razorpay',
+        paymentProviderSubscriptionId: razorpaySubscription.id,
       }
     });
 
-    // Update user's plan
+    // Return subscription details for Razorpay Checkout
+    res.json({
+      success: true,
+      subscriptionId: razorpaySubscription.id,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      amount: PLANS.pro.price,
+      currency: 'INR',
+      name: 'ReplyFlow Pro',
+      description: 'Monthly Pro Subscription - ₹499/month',
+      dbSubscriptionId: subscription.id,
+    });
+  } catch (error) {
+    console.error('Razorpay subscription creation failed:', error);
+    res.status(500).json({ error: 'Failed to create subscription. Please try again.' });
+  }
+});
+
+// Verify payment after Razorpay Checkout
+router.post('/verify-payment', protect, async (req, res) => {
+  try {
+    const {
+      razorpay_subscription_id,
+      razorpay_payment_id,
+      razorpay_signature
+    } = req.body;
+
+    // Verify payment signature
+    const isValid = razorpayService.verifyPaymentSignature(
+      razorpay_subscription_id,
+      razorpay_payment_id,
+      razorpay_signature
+    );
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Payment verification failed' });
+    }
+
+    // Find the subscription
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        paymentProviderSubscriptionId: razorpay_subscription_id,
+        userId: req.user.id,
+      }
+    });
+
+    if (!subscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    // Activate subscription
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      }
+    });
+
+    // Update user to Pro
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
         subscriptionPlan: 'pro',
         subscriptionStatus: 'active',
-        subscriptionEndsAt: subscription.currentPeriodEnd
+        subscriptionEndsAt: periodEnd,
       }
     });
 
     res.json({
       success: true,
-      message: 'Successfully upgraded to Pro!',
-      subscription
+      message: 'Payment verified! You are now on the Pro plan.',
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Payment verification error:', error);
+    res.status(500).json({ error: 'Verification failed' });
   }
 });
 
@@ -174,7 +250,7 @@ router.post('/cancel', protect, async (req, res) => {
       where: { id: req.user.id },
       include: {
         subscriptions: {
-          where: { status: 'active' },
+          where: { status: 'active', paymentProvider: 'razorpay' },
           take: 1
         }
       }
@@ -184,10 +260,25 @@ router.post('/cancel', protect, async (req, res) => {
       return res.status(400).json({ error: 'You are on the free plan' });
     }
 
-    // Cancel subscription (will remain active until end of billing period)
-    if (user.subscriptions[0]) {
+    const activeSubscription = user.subscriptions[0];
+
+    // Cancel on Razorpay (at end of billing cycle so user keeps access)
+    if (activeSubscription?.paymentProviderSubscriptionId) {
+      try {
+        await razorpayService.cancelSubscription(
+          activeSubscription.paymentProviderSubscriptionId,
+          true // cancel_at_cycle_end
+        );
+      } catch (rzpError) {
+        console.error('Razorpay cancel error:', rzpError);
+        // Continue with DB update even if Razorpay call fails
+      }
+    }
+
+    // Update subscription in DB
+    if (activeSubscription) {
       await prisma.subscription.update({
-        where: { id: user.subscriptions[0].id },
+        where: { id: activeSubscription.id },
         data: { status: 'cancelled' }
       });
     }
@@ -202,10 +293,11 @@ router.post('/cancel', protect, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Subscription cancelled. You will retain Pro access until ' + user.subscriptionEndsAt
+      message: 'Subscription cancelled. You will retain Pro access until ' + (user.subscriptionEndsAt || 'end of billing period'),
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Cancel subscription error:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription. Please try again.' });
   }
 });
 

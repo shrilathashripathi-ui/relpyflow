@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { subscriptionAPI } from '../utils/api';
 
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+
 const Pricing = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -27,12 +29,54 @@ const Pricing = () => {
   const handleUpgrade = async () => {
     setUpgrading(true);
     try {
-      await subscriptionAPI.upgrade();
-      await fetchSubscription();
-      alert('Successfully upgraded to Pro! Enjoy unlimited features.');
+      // Step 1: Create Razorpay subscription on backend
+      const response = await subscriptionAPI.upgrade();
+      const { razorpaySubscriptionId, razorpayPlanId, amount, currency, userName, userEmail } = response.data;
+
+      // Step 2: Open Razorpay Checkout
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        subscription_id: razorpaySubscriptionId,
+        name: 'ReplyFlow',
+        description: 'Pro Plan - Monthly Subscription',
+        image: '/vite.svg',
+        handler: async function (response) {
+          // Step 3: Verify payment on backend
+          try {
+            await subscriptionAPI.verifyPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_subscription_id: response.razorpay_subscription_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            await fetchSubscription();
+            alert('Payment successful! Welcome to Pro!');
+          } catch (err) {
+            console.error('Payment verification failed:', err);
+            alert('Payment received but verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: userName || '',
+          email: userEmail || '',
+        },
+        theme: {
+          color: '#9333ea', // purple-600
+        },
+        modal: {
+          ondismiss: function () {
+            setUpgrading(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        alert('Payment failed: ' + (response.error?.description || 'Unknown error'));
+        setUpgrading(false);
+      });
+      rzp.open();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to upgrade');
-    } finally {
+      alert(error.response?.data?.error || 'Failed to initiate payment');
       setUpgrading(false);
     }
   };
@@ -50,8 +94,22 @@ const Pricing = () => {
     }
   };
 
+  const handleCancel = async () => {
+    if (!confirm('Are you sure you want to cancel your Pro subscription? You will keep access until the end of your billing period.')) {
+      return;
+    }
+    try {
+      const response = await subscriptionAPI.cancel();
+      await fetchSubscription();
+      alert(response.data.message || 'Subscription cancelled.');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to cancel subscription');
+    }
+  };
+
   const isPro = subscription?.plan === 'pro' && subscription?.status !== 'cancelled';
   const isTrial = subscription?.status === 'trial';
+  const isCancelled = subscription?.status === 'cancelled';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,24 +134,35 @@ const Pricing = () => {
           <>
             {/* Current Plan Banner */}
             {subscription && (
-              <div className={`mb-8 p-4 rounded-xl ${isPro ? 'bg-purple-100' : isTrial ? 'bg-yellow-100' : 'bg-gray-100'}`}>
+              <div className={`mb-8 p-4 rounded-xl ${isPro ? 'bg-purple-100' : isTrial ? 'bg-yellow-100' : isCancelled ? 'bg-orange-100' : 'bg-gray-100'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className={`font-semibold ${isPro ? 'text-purple-800' : isTrial ? 'text-yellow-800' : 'text-gray-800'}`}>
+                    <span className={`font-semibold ${isPro ? 'text-purple-800' : isTrial ? 'text-yellow-800' : isCancelled ? 'text-orange-800' : 'text-gray-800'}`}>
                       Current Plan: {subscription.plan === 'pro' ? 'Pro' : 'Free'}
                       {isTrial && ' (Trial)'}
+                      {isCancelled && ' (Cancelled)'}
                     </span>
                     {subscription.daysRemaining !== null && (
                       <span className="ml-2 text-sm text-gray-600">
-                        • {subscription.daysRemaining} days remaining
+                        {isCancelled ? '• Access ends in' : '•'} {subscription.daysRemaining} days remaining
                       </span>
                     )}
                   </div>
-                  {subscription.usage && (
-                    <div className="text-sm text-gray-600">
-                      DMs used: {subscription.usage.dmsSent} / {subscription.usage.dmsLimit === -1 ? '∞' : subscription.usage.dmsLimit}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-4">
+                    {subscription.usage && (
+                      <div className="text-sm text-gray-600">
+                        DMs used: {subscription.usage.dmsSent} / {subscription.usage.dmsLimit === -1 ? '\u221E' : subscription.usage.dmsLimit}
+                      </div>
+                    )}
+                    {isPro && !isTrial && (
+                      <button
+                        onClick={handleCancel}
+                        className="text-sm text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Cancel Plan
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -105,7 +174,7 @@ const Pricing = () => {
                 <div className="mb-6">
                   <h3 className="text-2xl font-bold text-gray-800">Free</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-800">$0</span>
+                    <span className="text-4xl font-bold text-gray-800">{'\u20B9'}0</span>
                     <span className="text-gray-500">/month</span>
                   </div>
                 </div>
@@ -183,7 +252,7 @@ const Pricing = () => {
                 <div className="mb-6">
                   <h3 className="text-2xl font-bold text-gray-800">Pro</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-800">$7.99</span>
+                    <span className="text-4xl font-bold text-gray-800">{'\u20B9'}499</span>
                     <span className="text-gray-500">/month</span>
                   </div>
                 </div>
@@ -273,7 +342,7 @@ const Pricing = () => {
                       disabled={upgrading}
                       className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
                     >
-                      {upgrading ? 'Processing...' : 'Upgrade to Pro'}
+                      {upgrading ? 'Processing...' : 'Upgrade to Pro - \u20B9499/mo'}
                     </button>
                     <button
                       onClick={handleStartTrial}
@@ -282,6 +351,9 @@ const Pricing = () => {
                     >
                       Start 14-day free trial
                     </button>
+                    <p className="text-center text-xs text-gray-400">
+                      UPI, Cards, Net Banking accepted
+                    </p>
                   </div>
                 )}
               </div>
@@ -305,6 +377,13 @@ const Pricing = () => {
                   <h3 className="font-semibold text-gray-800 mb-2">Can I cancel anytime?</h3>
                   <p className="text-gray-600">
                     Yes! You can cancel your subscription at any time. You'll keep Pro access until the end of your billing period.
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 mb-2">What payment methods are accepted?</h3>
+                  <p className="text-gray-600">
+                    We accept UPI, all major credit/debit cards, and net banking through Razorpay's secure payment gateway.
                   </p>
                 </div>
 

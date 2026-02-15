@@ -84,6 +84,7 @@ export const subscriptionAPI = {
   checkFeature: (feature) => api.get(`/subscription/check-feature/${feature}`),
   checkLimits: () => api.get('/subscription/check-limits'),
   upgrade: () => api.post('/subscription/upgrade'),
+  verifyPayment: (data) => api.post('/subscription/verify-payment', data),
   cancel: () => api.post('/subscription/cancel'),
   startTrial: () => api.post('/subscription/start-trial'),
 };

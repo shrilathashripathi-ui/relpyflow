@@ -11,6 +11,7 @@ const subscriptionRoutes = require('./routes/subscription');
 const conversationFlowRoutes = require('./routes/conversationFlow');
 const analyticsRoutes = require('./routes/analytics');
 const webhookRoutes = require('./routes/webhook');
+const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
 
 // Import workers and services
 const commentPoller = require('./services/instagram/commentPoller');
@@ -41,6 +42,11 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Allow production frontend
+    if (origin === 'https://app.replyflows.in') {
+      return callback(null, true);
+    }
+
     // Allow custom frontend URL from env
     if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
       return callback(null, true);
@@ -62,6 +68,9 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
+
+// Razorpay webhook needs raw body BEFORE express.json() parses it
+app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }), razorpayWebhookRoutes);
 
 // Middleware
 app.use(cors(corsOptions));
