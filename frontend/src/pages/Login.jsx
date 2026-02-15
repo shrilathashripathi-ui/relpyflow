@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { authAPI } from '../utils/api';
 import { setToken, setUser, isAuthenticated } from '../utils/auth';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const [isLogin, setIsLogin] = useState(location.pathname !== '/register');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
