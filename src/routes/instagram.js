@@ -245,9 +245,22 @@ router.post('/direct-login', protect, async (req, res) => {
 
     // Find and click login button with navigation handling
     console.log('🔘 Clicking login button...');
-    const loginButton = await page.$('button[type="submit"]') ||
-                        await page.$('button:has-text("Log in")') ||
-                        await page.$('div[role="button"]');
+    let loginButton = await page.$('button[type="submit"]');
+    if (!loginButton) {
+      // Try finding button by text content
+      loginButton = await page.evaluateHandle(() => {
+        const buttons = document.querySelectorAll('button');
+        for (const btn of buttons) {
+          if (btn.textContent.trim().toLowerCase().includes('log in')) return btn;
+        }
+        return null;
+      });
+      if (loginButton && !(await loginButton.jsonValue !== undefined)) {
+        // evaluateHandle returns a JSHandle, check if it's not null
+        const isNull = await loginButton.evaluate(el => el === null);
+        if (isNull) loginButton = null;
+      }
+    }
 
     try {
       // Click button or press Enter, and wait for navigation simultaneously
