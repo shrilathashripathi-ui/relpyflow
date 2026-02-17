@@ -6,7 +6,6 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/config/migrate.js",
-    "postinstall": "npx puppeteer browsers install chrome",
     "test": "echo \"No tests yet\""
   },
   "keywords": [],

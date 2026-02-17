@@ -1,23 +1,12 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
 
 /**
  * Get the Chrome/Chromium executable path for Puppeteer
- * Tries multiple locations to find a working Chrome binary
+ * Priority: System Chromium (from Aptfile) → Bundled Chromium → which command
  */
 function getChromePath() {
-  // 1. Try the bundled Chromium from puppeteer package
-  try {
-    const puppeteerCore = require('puppeteer');
-    const bundledPath = puppeteerCore.executablePath();
-    if (bundledPath) {
-      console.log(`🌐 Using bundled Chromium: ${bundledPath}`);
-      return bundledPath;
-    }
-  } catch (e) {
-    console.log('Bundled Chromium not found, checking system...');
-  }
-
-  // 2. Try common system Chromium locations
+  // 1. Try common system Chromium locations (installed via Aptfile on DigitalOcean)
   const possiblePaths = [
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
@@ -28,7 +17,6 @@ function getChromePath() {
 
   for (const p of possiblePaths) {
     try {
-      const fs = require('fs');
       if (fs.existsSync(p)) {
         console.log(`🌐 Using system Chrome: ${p}`);
         return p;
@@ -38,10 +26,23 @@ function getChromePath() {
     }
   }
 
+  // 2. Try the bundled Chromium from puppeteer package (for local dev)
+  try {
+    const puppeteerPkg = require('puppeteer');
+    const bundledPath = puppeteerPkg.executablePath();
+    if (bundledPath && fs.existsSync(bundledPath)) {
+      console.log(`🌐 Using bundled Chromium: ${bundledPath}`);
+      return bundledPath;
+    }
+  } catch (e) {
+    console.log('Bundled Chromium not available, continuing search...');
+  }
+
   // 3. Try to find via 'which' command
   try {
-    const result = execSync('which chromium-browser || which chromium || which google-chrome', {
+    const result = execSync('which chromium-browser || which chromium || which google-chrome 2>/dev/null', {
       encoding: 'utf-8',
+      timeout: 5000,
     }).trim();
     if (result) {
       console.log(`🌐 Found Chrome via which: ${result}`);
