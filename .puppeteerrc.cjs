@@ -1,7 +1,9 @@
+const { join } = require('path');
+
 /**
  * Puppeteer configuration for DigitalOcean App Platform
- * Skip bundled Chrome download - we use system Chromium installed via Aptfile
+ * Cache Chrome inside node_modules so it persists with the deployment
  */
 module.exports = {
-  skipDownload: true,
+  cacheDirectory: join(__dirname, 'node_modules', '.cache', 'puppeteer'),
 };

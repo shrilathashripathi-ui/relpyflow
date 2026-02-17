@@ -3,10 +3,22 @@ const fs = require('fs');
 
 /**
  * Get the Chrome/Chromium executable path for Puppeteer
- * Priority: System Chromium (from Aptfile) → Bundled Chromium → which command
+ * Priority: Bundled Chrome (from puppeteer npm) → System Chromium → which command
  */
 function getChromePath() {
-  // 1. Try common system Chromium locations (installed via Aptfile on DigitalOcean)
+  // 1. Try the bundled Chromium from puppeteer package (most reliable)
+  try {
+    const puppeteerPkg = require('puppeteer');
+    const bundledPath = puppeteerPkg.executablePath();
+    if (bundledPath && fs.existsSync(bundledPath)) {
+      console.log(`🌐 Using bundled Chromium: ${bundledPath}`);
+      return bundledPath;
+    }
+  } catch (e) {
+    console.log('Bundled Chromium not available, checking system...');
+  }
+
+  // 2. Try common system Chromium locations
   const possiblePaths = [
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
@@ -24,18 +36,6 @@ function getChromePath() {
     } catch (e) {
       // continue
     }
-  }
-
-  // 2. Try the bundled Chromium from puppeteer package (for local dev)
-  try {
-    const puppeteerPkg = require('puppeteer');
-    const bundledPath = puppeteerPkg.executablePath();
-    if (bundledPath && fs.existsSync(bundledPath)) {
-      console.log(`🌐 Using bundled Chromium: ${bundledPath}`);
-      return bundledPath;
-    }
-  } catch (e) {
-    console.log('Bundled Chromium not available, continuing search...');
   }
 
   // 3. Try to find via 'which' command
@@ -80,7 +80,6 @@ function getLaunchOptions(overrides = {}) {
     ...overrides,
   };
 
-  // Remove executablePath if undefined so Puppeteer uses default
   if (!options.executablePath) {
     delete options.executablePath;
   }
