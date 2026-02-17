@@ -163,38 +163,29 @@ router.post('/direct-login', protect, async (req, res) => {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1366, height: 768 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+
+    // Set extra headers to look more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
+
+    // Enable JavaScript (should be default, but explicitly ensure)
+    await page.setJavaScriptEnabled(true);
 
     // Go to Instagram login page
     console.log('📱 Loading Instagram login page...');
     await page.goto('https://www.instagram.com/accounts/login/', {
-      waitUntil: 'networkidle0',
+      waitUntil: 'networkidle2',
       timeout: 60000
     });
 
-    // Wait a bit for page to fully load
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Try to accept cookies if dialog appears
-    try {
-      const acceptCookiesBtn = await page.$('button[tabindex="0"]');
-      if (acceptCookiesBtn) {
-        const btnText = await page.evaluate(el => el.textContent, acceptCookiesBtn);
-        if (btnText && (btnText.includes('Allow') || btnText.includes('Accept') || btnText.includes('Only Allow'))) {
-          console.log('🍪 Accepting cookies dialog...');
-          await acceptCookiesBtn.click();
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-    } catch (e) {
-      console.log('No cookie dialog found, continuing...');
-    }
-
-    // Wait for login form with multiple possible selectors
-    console.log('⏳ Waiting for login form...');
+    // Wait for JS app to render the login form (Instagram is a SPA)
+    console.log('⏳ Waiting for login form to render...');
     let usernameInput = null;
 
-    // Try different selectors
+    // Try to find the username input with a long timeout (SPA needs time to mount)
     const selectors = [
       'input[name="username"]',
       'input[aria-label="Phone number, username, or email"]',
@@ -204,14 +195,44 @@ router.post('/direct-login', protect, async (req, res) => {
 
     for (const selector of selectors) {
       try {
-        await page.waitForSelector(selector, { timeout: 5000 });
+        await page.waitForSelector(selector, { timeout: 20000, visible: true });
         usernameInput = await page.$(selector);
         if (usernameInput) {
           console.log(`✅ Found input with selector: ${selector}`);
           break;
         }
       } catch (e) {
+        console.log(`Selector ${selector} not found, trying next...`);
         continue;
+      }
+    }
+
+    // If still not found, try accepting cookies first then retry
+    if (!usernameInput) {
+      console.log('🍪 Trying to dismiss cookie/consent dialogs...');
+      try {
+        const buttons = await page.$$('button');
+        for (const btn of buttons) {
+          const text = await page.evaluate(el => el.textContent, btn);
+          if (text && (text.includes('Allow') || text.includes('Accept') || text.includes('Only Allow') || text.includes('Decline'))) {
+            console.log(`Clicking: ${text.trim()}`);
+            await btn.click();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            break;
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      // Retry finding the input after dismissing dialogs
+      for (const selector of selectors) {
+        try {
+          await page.waitForSelector(selector, { timeout: 10000, visible: true });
+          usernameInput = await page.$(selector);
+          if (usernameInput) {
+            console.log(`✅ Found input after dialog dismiss: ${selector}`);
+            break;
+          }
+        } catch (e) { continue; }
       }
     }
 
