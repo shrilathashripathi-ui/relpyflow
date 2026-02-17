@@ -67,14 +67,8 @@ const Sidebar = () => {
     <div className="w-64 bg-white h-screen fixed left-0 top-0 border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-gray-100">
-        <Link to="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M2 13l5 5L14 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 13l5 5L21 7" stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span className="text-xl font-bold text-gray-800">ReplyFlow</span>
+        <Link to="/dashboard" className="flex items-center">
+          <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">Replyflows</span>
         </Link>
       </div>
 

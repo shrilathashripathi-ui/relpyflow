@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { isAuthenticated } from './utils/auth';
 import ProtectedRoute from './components/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ConnectInstagram from './pages/ConnectInstagram';
@@ -152,11 +153,11 @@ function App() {
           }
         />
 
-        {/* Root - redirect to dashboard or login */}
+        {/* Root - show landing page or dashboard */}
         <Route
           path="/"
           element={
-            <Navigate to={isAuthenticated() ? '/dashboard' : '/login'} replace />
+            isAuthenticated() ? <Navigate to="/dashboard" replace /> : <LandingPage />
           }
         />
 

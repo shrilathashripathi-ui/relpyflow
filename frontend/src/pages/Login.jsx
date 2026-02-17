@@ -65,17 +65,11 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-400 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-              <path d="M2 13l5 5L14 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 13l5 5L21 7" stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
           <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            ReplyFlow
+            Replyflows
           </h2>
           <p className="mt-2 text-gray-500">
-            Instagram Auto-DM Automation Tool
+            Instagram DM Automation Platform
           </p>
         </div>
 
@@ -181,6 +175,24 @@ const Login = () => {
             </button>
           </form>
         </div>
+
+        <p className="text-center text-sm text-gray-500">
+          {isLogin ? (
+            <>
+              Don't have an account?{' '}
+              <button onClick={() => { setIsLogin(false); setError(''); }} className="text-purple-600 hover:underline font-medium">
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button onClick={() => { setIsLogin(true); setError(''); }} className="text-purple-600 hover:underline font-medium">
+                Log in
+              </button>
+            </>
+          )}
+        </p>
 
         </div>
     </div>

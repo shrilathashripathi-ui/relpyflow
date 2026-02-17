@@ -37,7 +37,7 @@ const Pricing = () => {
       const options = {
         key: RAZORPAY_KEY_ID,
         subscription_id: razorpaySubscriptionId,
-        name: 'ReplyFlow',
+        name: 'Replyflows',
         description: 'Pro Plan - Monthly Subscription',
         image: '/vite.svg',
         handler: async function (response) {
