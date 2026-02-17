@@ -180,16 +180,16 @@ const Login = () => {
           {isLogin ? (
             <>
               Don't have an account?{' '}
-              <button onClick={() => { setIsLogin(false); setError(''); }} className="text-purple-600 hover:underline font-medium">
+              <Link to="/register" onClick={() => { setIsLogin(false); setError(''); }} className="text-purple-600 hover:underline font-medium">
                 Sign up
-              </button>
+              </Link>
             </>
           ) : (
             <>
               Already have an account?{' '}
-              <button onClick={() => { setIsLogin(true); setError(''); }} className="text-purple-600 hover:underline font-medium">
+              <Link to="/login" onClick={() => { setIsLogin(true); setError(''); }} className="text-purple-600 hover:underline font-medium">
                 Log in
-              </button>
+              </Link>
             </>
           )}
         </p>
