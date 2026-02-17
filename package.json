@@ -6,6 +6,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/config/migrate.js",
+    "postinstall": "npx puppeteer browsers install chrome",
     "test": "echo \"No tests yet\""
   },
   "keywords": [],
@@ -20,6 +21,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
+    "openai": "^6.17.0",
     "pg": "^8.11.3",
     "prisma": "^5.22.0",
     "puppeteer": "^24.34.0",

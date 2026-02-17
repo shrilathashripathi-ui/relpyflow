@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { getLaunchOptions } = require('../../utils/browserHelper');
 
 puppeteer.use(StealthPlugin());
 
@@ -11,16 +12,10 @@ class InstagramCookieCapture {
 
   async init() {
     console.log('🚀 Launching browser...');
-    
-    this.browser = await puppeteer.launch({
+
+    this.browser = await puppeteer.launch(getLaunchOptions({
       headless: false, // Show browser for manual login
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process'
-      ]
-    });
+    }));
 
     this.page = await this.browser.newPage();
     
