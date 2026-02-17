@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+const APP_URL = 'https://app.replyflows.in';
 
 const LandingPage = () => {
-  const navigate = useNavigate();
+  const goTo = (path) => { window.location.href = `${APP_URL}${path}`; };
   const [openFaq, setOpenFaq] = useState(null);
 
   const features = [
@@ -286,13 +287,13 @@ const LandingPage = () => {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => goTo('/login')}
                 className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
               >
                 Log in
               </button>
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => goTo('/register')}
                 className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
               >
                 Get Started Free
@@ -326,7 +327,7 @@ const LandingPage = () => {
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
                 <button
-                  onClick={() => navigate('/register')}
+                  onClick={() => goTo('/register')}
                   className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-semibold text-lg hover:shadow-xl hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2"
                 >
                   Get Started Free
@@ -555,7 +556,7 @@ const LandingPage = () => {
                 ))}
               </ul>
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => goTo('/register')}
                 className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
               >
                 Start Free
@@ -593,7 +594,7 @@ const LandingPage = () => {
                 ))}
               </ul>
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => goTo('/register')}
                 className="w-full py-3 bg-white text-purple-600 rounded-xl font-semibold hover:bg-gray-100 transition-colors"
               >
                 Start Pro Trial
@@ -708,7 +709,7 @@ const LandingPage = () => {
                 Join thousands of creators who grow their business on autopilot with Replyflows.
               </p>
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => goTo('/register')}
                 className="px-8 py-4 bg-white text-purple-600 rounded-xl font-semibold text-lg hover:shadow-xl transition-all inline-flex items-center gap-2"
               >
                 Get Started Free

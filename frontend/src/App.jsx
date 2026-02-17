@@ -153,11 +153,11 @@ function App() {
           }
         />
 
-        {/* Root - show landing page or dashboard */}
+        {/* Root - redirect to dashboard or login */}
         <Route
           path="/"
           element={
-            isAuthenticated() ? <Navigate to="/dashboard" replace /> : <LandingPage />
+            <Navigate to={isAuthenticated() ? '/dashboard' : '/login'} replace />
           }
         />
 
