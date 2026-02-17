@@ -243,93 +243,97 @@ router.post('/direct-login', protect, async (req, res) => {
     await passwordInput.click();
     await passwordInput.type(password, { delay: 100 });
 
-    // Find and click login button
+    // Find and click login button with navigation handling
     console.log('🔘 Clicking login button...');
-    const loginButton = await page.$('button[type="submit"]');
+    const loginButton = await page.$('button[type="submit"]') ||
+                        await page.$('button:has-text("Log in")') ||
+                        await page.$('div[role="button"]');
 
-    if (loginButton) {
-      await loginButton.click();
-    } else {
-      // Try pressing Enter as fallback
-      console.log('No submit button found, pressing Enter...');
-      await page.keyboard.press('Enter');
+    try {
+      // Click button or press Enter, and wait for navigation simultaneously
+      if (loginButton) {
+        console.log('Found submit button, clicking...');
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+          loginButton.click()
+        ]);
+      } else {
+        console.log('No submit button found, pressing Enter...');
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+          page.keyboard.press('Enter')
+        ]);
+      }
+    } catch (navError) {
+      // Navigation errors (context destroyed) are expected during login redirect
+      console.log('Navigation occurred (expected):', navError.message?.substring(0, 80));
     }
 
-    // Wait for navigation or error
+    // Wait for page to settle after navigation
     console.log('⏳ Waiting for login response...');
-    await new Promise(resolve => setTimeout(resolve, 7000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Check current URL
-    const currentUrl = page.url();
+    let currentUrl;
+    try {
+      currentUrl = page.url();
+    } catch (e) {
+      // If page context is gone, try to get URL from browser
+      const pages = await browser.pages();
+      const activePage = pages[pages.length - 1];
+      currentUrl = activePage.url();
+      // Replace page reference if needed
+    }
     console.log('📍 Current URL:', currentUrl);
 
-    // Check for error messages - Instagram shows errors in multiple ways
-    const errorMessage = await page.evaluate(() => {
-      // Try multiple selectors for error messages
-      const selectors = [
-        '[role="alert"]',
-        '#slfErrorAlert',
-        'p[data-testid="login-error-message"]',
-        '[data-testid="login-error-message"]',
-        'div[role="alert"] span',
-        '#loginForm span[id]',
-        'form[id="loginForm"] div[role="alert"]',
-        'span.x1lliihq.x1plvlek.xryxfnj', // Instagram's error text class
-        'div._ab2z span' // Another common error container
-      ];
+    // Check for error messages safely (page context might have changed)
+    let errorMessage = null;
+    try {
+      errorMessage = await page.evaluate(() => {
+        const selectors = [
+          '[role="alert"]',
+          '#slfErrorAlert',
+          'p[data-testid="login-error-message"]',
+          '[data-testid="login-error-message"]',
+        ];
 
-      for (const selector of selectors) {
-        const el = document.querySelector(selector);
-        if (el && el.textContent && el.textContent.trim().length > 0) {
-          const text = el.textContent.trim();
-          // Check if it looks like an error message
-          if (text.toLowerCase().includes('sorry') ||
+        for (const selector of selectors) {
+          const el = document.querySelector(selector);
+          if (el && el.textContent && el.textContent.trim().length > 0) {
+            return el.textContent.trim();
+          }
+        }
+
+        // Check form area for error spans
+        const formArea = document.querySelector('form') || document.querySelector('#loginForm');
+        if (formArea) {
+          const spans = formArea.querySelectorAll('span');
+          for (const span of spans) {
+            const text = span.textContent?.trim();
+            if (text && (
+              text.toLowerCase().includes('sorry') ||
               text.toLowerCase().includes('incorrect') ||
               text.toLowerCase().includes('wrong') ||
-              text.toLowerCase().includes('password') ||
-              text.toLowerCase().includes('username') ||
-              text.toLowerCase().includes('error') ||
-              text.toLowerCase().includes('try again') ||
-              text.toLowerCase().includes('wasn\'t')) {
-            return text;
+              text.toLowerCase().includes('doesn\'t') ||
+              text.toLowerCase().includes('wasn\'t')
+            )) {
+              return text;
+            }
           }
         }
-      }
 
-      // Also check for any visible error-like text in the form area
-      const formArea = document.querySelector('form') || document.querySelector('#loginForm');
-      if (formArea) {
-        const spans = formArea.querySelectorAll('span');
-        for (const span of spans) {
-          const text = span.textContent?.trim();
-          if (text && (
-            text.toLowerCase().includes('sorry') ||
-            text.toLowerCase().includes('incorrect') ||
-            text.toLowerCase().includes('wrong password') ||
-            text.toLowerCase().includes('doesn\'t match') ||
-            text.toLowerCase().includes('wasn\'t right')
-          )) {
-            return text;
-          }
-        }
-      }
-
-      return null;
-    });
+        return null;
+      });
+    } catch (evalError) {
+      console.log('Could not check for errors (page navigated):', evalError.message?.substring(0, 60));
+    }
 
     if (errorMessage) {
       console.log('❌ Login error detected:', errorMessage);
       await browser.close();
-
-      // Provide clearer error messages
-      let userFriendlyError = errorMessage;
-      if (errorMessage.toLowerCase().includes('password') ||
-          errorMessage.toLowerCase().includes('incorrect') ||
-          errorMessage.toLowerCase().includes('wrong')) {
-        userFriendlyError = 'Invalid username or password. Please check your credentials and try again.';
-      }
-
-      return res.status(401).json({ error: userFriendlyError });
+      return res.status(401).json({
+        error: 'Invalid username or password. Please check your credentials and try again.'
+      });
     }
 
     // Check if we need 2FA or checkpoint
@@ -337,7 +341,7 @@ router.post('/direct-login', protect, async (req, res) => {
       console.log('⚠️ Challenge/2FA required');
       await browser.close();
       return res.status(400).json({
-        error: 'Instagram requires verification (2FA or security checkpoint). Please use Facebook connection instead.'
+        error: 'Instagram requires additional verification (2FA or security checkpoint). Please check your Instagram app for a verification prompt, then try again.'
       });
     }
 
@@ -345,19 +349,23 @@ router.post('/direct-login', protect, async (req, res) => {
     if (currentUrl.includes('/accounts/login')) {
       console.log('❌ Still on login page - credentials may be wrong');
 
-      // Try one more time to find error message after waiting
-      const finalErrorCheck = await page.evaluate(() => {
-        const allText = document.body.innerText;
-        if (allText.includes('Sorry, your password was incorrect') ||
-            allText.includes('password you entered is incorrect') ||
-            allText.includes('username you entered doesn\'t belong')) {
-          return 'Invalid username or password. Please check your credentials and try again.';
-        }
-        if (allText.includes('Please wait a few minutes')) {
-          return 'Too many login attempts. Please wait a few minutes before trying again.';
-        }
-        return null;
-      });
+      let finalErrorCheck = null;
+      try {
+        finalErrorCheck = await page.evaluate(() => {
+          const allText = document.body.innerText;
+          if (allText.includes('Sorry, your password was incorrect') ||
+              allText.includes('password you entered is incorrect') ||
+              allText.includes('username you entered doesn\'t belong')) {
+            return 'Invalid username or password. Please check your credentials and try again.';
+          }
+          if (allText.includes('Please wait a few minutes')) {
+            return 'Too many login attempts. Please wait a few minutes before trying again.';
+          }
+          return null;
+        });
+      } catch (e) {
+        console.log('Could not read error text');
+      }
 
       await browser.close();
       return res.status(401).json({
