@@ -96,7 +96,7 @@ async getComments(shortcode) {
     const edges = response.data?.data?.shortcode_media?.edge_media_to_parent_comment?.edges || [];
     
     console.log(`✅ Fetched ${edges.length} comments via API`);
-    
+
     return edges.map(edge => ({
       id: edge.node.id,
       username: edge.node.owner.username,
@@ -104,7 +104,7 @@ async getComments(shortcode) {
       timestamp: new Date(edge.node.created_at * 1000).toISOString(),
       userId: edge.node.owner.id
     }));
-    
+
   } catch (error) {
     console.error('❌ API request failed:', error.message);
     if (error.response) {
@@ -114,8 +114,136 @@ async getComments(shortcode) {
     throw error;
   }
 }
-  
-  }
 
+}
+
+/**
+ * Parse session cookies from an account, returning null if invalid
+ */
+function parseSessionCookies(account) {
+  try {
+    const cookies = typeof account.sessionCookies === 'string'
+      ? JSON.parse(account.sessionCookies)
+      : account.sessionCookies;
+
+    if (!Array.isArray(cookies)) {
+      console.error(`❌ sessionCookies for @${account.username} is not a valid cookie array - session needs to be recaptured`);
+      return null;
+    }
+    return cookies;
+  } catch (e) {
+    console.error(`❌ Invalid sessionCookies for @${account.username} - session needs to be recaptured`);
+    return null;
+  }
+}
+
+/**
+ * Send a DM using account session cookies
+ */
+async function sendDirectMessage(account, recipientUserId, message) {
+  console.log(`📤 Sending DM to ${recipientUserId}`);
+
+  const cookies = parseSessionCookies(account);
+  if (!cookies) throw new Error('Invalid session cookies - recapture session');
+
+  const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  try {
+    // First, get or create a thread with the user
+    const threadResponse = await axios.post(
+      'https://i.instagram.com/api/v1/direct_v2/threads/broadcast/text/',
+      new URLSearchParams({
+        recipient_users: JSON.stringify([recipientUserId]),
+        text: message,
+        action: 'send_item'
+      }).toString(),
+      {
+        headers: {
+          'User-Agent': account.userAgent || 'Instagram 275.0.0.27.98 Android',
+          'Cookie': cookieString,
+          'X-CSRFToken': account.csrfToken,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-IG-App-ID': '936619743392459'
+        }
+      }
+    );
+
+    console.log('✅ DM sent successfully');
+    return threadResponse.data;
+  } catch (error) {
+    console.error('❌ Failed to send DM:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get DM inbox for an account
+ */
+async function getDMInbox(account) {
+  console.log(`📥 Fetching DM inbox for @${account.username}`);
+
+  const cookies = parseSessionCookies(account);
+  if (!cookies) return { threads: [] };
+
+  const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  try {
+    const response = await axios.get(
+      'https://i.instagram.com/api/v1/direct_v2/inbox/',
+      {
+        headers: {
+          'User-Agent': account.userAgent || 'Instagram 275.0.0.27.98 Android',
+          'Cookie': cookieString,
+          'X-CSRFToken': account.csrfToken,
+          'X-IG-App-ID': '936619743392459'
+        }
+      }
+    );
+
+    console.log(`✅ Fetched ${response.data?.inbox?.threads?.length || 0} DM threads`);
+    return {
+      threads: response.data?.inbox?.threads || []
+    };
+  } catch (error) {
+    console.error('❌ Failed to fetch DM inbox:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Check if a user is following the account
+ */
+async function checkFollowStatus(account, userId) {
+  console.log(`👀 Checking follow status for ${userId}`);
+
+  const cookies = parseSessionCookies(account);
+  if (!cookies) return false;
+
+  const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  try {
+    const response = await axios.get(
+      `https://i.instagram.com/api/v1/friendships/show/${userId}/`,
+      {
+        headers: {
+          'User-Agent': account.userAgent || 'Instagram 275.0.0.27.98 Android',
+          'Cookie': cookieString,
+          'X-CSRFToken': account.csrfToken,
+          'X-IG-App-ID': '936619743392459'
+        }
+      }
+    );
+
+    const isFollowing = response.data?.followed_by || false;
+    console.log(`   User ${userId} following: ${isFollowing}`);
+    return isFollowing;
+  } catch (error) {
+    console.error('❌ Failed to check follow status:', error.message);
+    return false;
+  }
+}
 
 module.exports = InstagramCommentAPI;
+module.exports.sendDirectMessage = sendDirectMessage;
+module.exports.getDMInbox = getDMInbox;
+module.exports.checkFollowStatus = checkFollowStatus;

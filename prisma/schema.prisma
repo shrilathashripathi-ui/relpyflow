@@ -17,16 +17,17 @@ model User {
   verificationTokenExpires  DateTime? @map("verification_token_expires")
   resetToken                String?   @map("reset_token")
   resetTokenExpires         DateTime? @map("reset_token_expires")
-  
+
   subscriptionPlan          String    @default("free") @map("subscription_plan")
   subscriptionStatus        String    @default("trial") @map("subscription_status")
   trialEndsAt               DateTime? @map("trial_ends_at")
   subscriptionEndsAt        DateTime? @map("subscription_ends_at")
-  
+
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
   instagramAccounts         InstagramAccount[]
+  automations               Automation[]
   notificationSettings      NotificationSettings?
   subscriptions             Subscription[]
   usageTracking             UsageTracking[]
@@ -39,24 +40,38 @@ model InstagramAccount {
   userId              String    @map("user_id")
   igUserId            String?   @map("ig_user_id")
   username            String
-  
+
+  // Official Instagram API (Graph API / Messaging API)
+  accessToken         String?   @map("access_token")
+  accessTokenExpiry   DateTime? @map("access_token_expiry")
+  pageId              String?   @map("page_id") // Facebook Page ID linked to Instagram account
+  useOfficialApi      Boolean   @default(false) @map("use_official_api")
+
+  // Legacy session-based auth (fallback)
   sessionCookies      String?   @map("session_cookies")
   csrfToken           String?   @map("csrf_token")
   userAgent           String?   @map("user_agent")
   assignedProxyIp     String?   @map("assigned_proxy_ip")
-  
+
+  // Encrypted password for auto re-login (optional)
+  encryptedPassword   String?   @map("encrypted_password")
+  autoReloginEnabled  Boolean   @default(false) @map("auto_relogin_enabled")
+  lastReloginAt       DateTime? @map("last_relogin_at")
+  reloginFailCount    Int       @default(0) @map("relogin_fail_count")
+
   status              String    @default("active")
   lastActivityAt      DateTime? @map("last_activity_at")
   lastActionBlockAt   DateTime? @map("last_action_block_at")
   actionBlockCount    Int       @default(0) @map("action_block_count")
-  
+
   accountAgeDays      Int       @default(0) @map("account_age_days")
   warmupMode          Boolean   @default(true) @map("warmup_mode")
-  
+
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automations         Automation[]
   monitoredReels      MonitoredReel[]
   keywords            Keyword[]
   messageTemplates    MessageTemplate[]
@@ -271,10 +286,10 @@ model Subscription {
 model UsageTracking {
   id                   String   @id @default(uuid())
   userId               String   @map("user_id")
-  
+
   periodStart          DateTime @db.Date @map("period_start")
   periodEnd            DateTime @db.Date @map("period_end")
-  
+
   dmsSentCount         Int      @default(0) @map("dms_sent_count")
   igAccountsConnected  Int      @default(0) @map("ig_accounts_connected")
   reelsMonitored       Int      @default(0) @map("reels_monitored")
@@ -283,4 +298,297 @@ model UsageTracking {
 
   @@unique([userId, periodStart])
   @@map("usage_tracking")
+}
+
+// ============================================
+// AUTOMATION MODELS (Comment & DM Automation)
+// ============================================
+
+model Automation {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  instagramAccountId  String    @map("instagram_account_id")
+
+  name                String
+  type                String    @default("comment") // "comment" or "dm"
+  keywords            String[]  // Array of trigger keywords
+  responseMessage     String    @map("response_message") // DM message to send
+  commentReplyEnabled Boolean   @default(false) @map("comment_reply_enabled")
+  commentReplyMessage String?   @map("comment_reply_message") // Public reply to comment
+  commentReplies      String[]  @default([]) @map("comment_replies") // Array of random comment replies
+
+  // Selected posts/reels to monitor (if empty, monitors all)
+  selectedMediaIds    String[]  @default([]) @map("selected_media_ids") // Array of media IDs to monitor
+  monitorAllPosts     Boolean   @default(false) @map("monitor_all_posts") // If true, monitors all posts
+
+  // Ask for Follow feature (Premium)
+  askForFollowEnabled Boolean   @default(false) @map("ask_for_follow_enabled")
+  askForFollowMessage String?   @map("ask_for_follow_message") // Message to send if not following
+  skipNonFollowers    Boolean   @default(false) @map("skip_non_followers") // Skip DM entirely if not following
+
+  // Lead Collection feature (Premium)
+  leadCollectionEnabled Boolean @default(false) @map("lead_collection_enabled")
+  leadFields          Json?     @map("lead_fields") // Array of { fieldName, fieldType, required }
+
+  // AI Reply feature (Premium)
+  aiReplyEnabled      Boolean   @default(false) @map("ai_reply_enabled")
+  aiContext           String?   @map("ai_context") // Business context for AI
+  aiProductInfo       String?   @map("ai_product_info") // Product/service info
+  aiCtaUrl            String?   @map("ai_cta_url") // Call-to-action URL
+
+  // Webhook integration (n8n, Zapier, etc.)
+  webhookEnabled      Boolean   @default(false) @map("webhook_enabled")
+  webhookUrl          String?   @map("webhook_url") // URL to POST lead data
+  webhookSecret       String?   @map("webhook_secret") // Secret for signature verification
+
+  isActive            Boolean   @default(true) @map("is_active")
+
+  // Stats
+  triggerCount        Int       @default(0) @map("trigger_count")
+  dmsSentCount        Int       @default(0) @map("dms_sent_count")
+  leadsCollected      Int       @default(0) @map("leads_collected")
+  dmsOpened           Int       @default(0) @map("dms_opened")
+  linksClicked        Int       @default(0) @map("links_clicked")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instagramAccount    InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  triggers            Trigger[]
+  leads               Lead[]
+
+  @@map("automations")
+}
+
+model Trigger {
+  id                  String    @id @default(uuid())
+  automationId        String    @map("automation_id")
+
+  // Who triggered
+  commenterIgId       String    @map("commenter_ig_id")
+  commenterUsername   String    @map("commenter_username")
+
+  // What triggered
+  commentId           String?   @map("comment_id")
+  commentText         String?   @map("comment_text")
+  matchedKeyword      String    @map("matched_keyword")
+
+  // For DM automation (incoming DM trigger)
+  incomingDmText      String?   @map("incoming_dm_text")
+
+  // Actions taken
+  dmSent              Boolean   @default(false) @map("dm_sent")
+  dmSentAt            DateTime? @map("dm_sent_at")
+  commentReplied      Boolean   @default(false) @map("comment_replied")
+  commentRepliedAt    DateTime? @map("comment_replied_at")
+
+  // Ask for Follow tracking
+  isFollower          Boolean?  @map("is_follower")
+  followRequested     Boolean   @default(false) @map("follow_requested")
+  followedAt          DateTime? @map("followed_at")
+
+  // Status
+  status              String    @default("pending") // pending, dm_sent, failed, waiting_follow
+  errorMessage        String?   @map("error_message")
+
+  // Conversation flow tracking
+  conversationStep    String    @default("opening") @map("conversation_step") // opening, waiting_button, waiting_follow, waiting_email, link_sent, completed
+  buttonClicked       Boolean   @default(false) @map("button_clicked")
+  buttonClickedAt     DateTime? @map("button_clicked_at")
+  emailCollected      String?   @map("email_collected")
+  linkSent            Boolean   @default(false) @map("link_sent")
+  linkSentAt          DateTime? @map("link_sent_at")
+  followUpSent        Boolean   @default(false) @map("follow_up_sent")
+  followUpSentAt      DateTime? @map("follow_up_sent_at")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  automation          Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@unique([automationId, commentId]) // Prevent duplicate triggers for same comment
+  @@map("triggers")
+}
+
+// ============================================
+// LEAD COLLECTION
+// ============================================
+
+model Lead {
+  id                  String    @id @default(uuid())
+  automationId        String    @map("automation_id")
+
+  // Instagram user info
+  igUserId            String    @map("ig_user_id")
+  igUsername          String    @map("ig_username")
+
+  // Collected data
+  email               String?
+  phone               String?
+  name                String?
+  customData          Json?     @map("custom_data") // Any additional fields
+
+  // Source info
+  sourceCommentId     String?   @map("source_comment_id")
+  sourceMediaId       String?   @map("source_media_id")
+
+  // Status
+  isComplete          Boolean   @default(false) @map("is_complete")
+  currentStep         Int       @default(0) @map("current_step") // Which field we're collecting
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  automation          Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@unique([automationId, igUserId])
+  @@map("leads")
+}
+
+// ============================================
+// CONVERSATION FLOW SYSTEM
+// ============================================
+
+model ConversationFlow {
+  id                  String    @id @default(uuid())
+  automationId        String    @map("automation_id")
+
+  name                String
+  description         String?
+
+  // Flow configuration stored as JSON
+  // Contains nodes (steps) and edges (connections)
+  flowConfig          Json      @map("flow_config")
+
+  isActive            Boolean   @default(true) @map("is_active")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  steps               ConversationStep[]
+  conversations       Conversation[]
+
+  @@map("conversation_flows")
+}
+
+model ConversationStep {
+  id                  String    @id @default(uuid())
+  flowId              String    @map("flow_id")
+
+  stepOrder           Int       @map("step_order")
+  stepType            String    @map("step_type") // "message", "condition", "delay", "reminder", "ask_follow"
+
+  // For message steps
+  messageText         String?   @map("message_text")
+  attachmentUrl       String?   @map("attachment_url") // Link or image URL
+  attachmentType      String?   @map("attachment_type") // "link", "image"
+  buttonText          String?   @map("button_text")
+  buttonUrl           String?   @map("button_url")
+
+  // For condition steps (if user replies with keyword)
+  conditionType       String?   @map("condition_type") // "keyword", "is_follower", "any_reply"
+  conditionKeywords   String[]  @default([]) @map("condition_keywords")
+  conditionOperator   String?   @map("condition_operator") // "contains", "equals", "starts_with"
+
+  // For delay/reminder steps
+  delayMinutes        Int?      @map("delay_minutes")
+  reminderEnabled     Boolean   @default(false) @map("reminder_enabled")
+
+  // Navigation
+  nextStepOnSuccess   String?   @map("next_step_on_success") // Step ID to go to if condition met
+  nextStepOnFailure   String?   @map("next_step_on_failure") // Step ID if condition not met
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  flow                ConversationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@map("conversation_steps")
+}
+
+model Conversation {
+  id                  String    @id @default(uuid())
+  flowId              String    @map("flow_id")
+  igAccountId         String    @map("ig_account_id")
+
+  // User in conversation
+  userIgId            String    @map("user_ig_id")
+  userUsername        String    @map("user_username")
+
+  // Current state
+  currentStepId       String?   @map("current_step_id")
+  status              String    @default("active") // "active", "completed", "paused", "waiting_reply"
+
+  // Tracking
+  isFollower          Boolean?  @map("is_follower")
+  lastMessageSentAt   DateTime? @map("last_message_sent_at")
+  lastReplyReceivedAt DateTime? @map("last_reply_received_at")
+  lastReplyText       String?   @map("last_reply_text")
+
+  // Reminder tracking
+  nextReminderAt      DateTime? @map("next_reminder_at")
+  reminderCount       Int       @default(0) @map("reminder_count")
+
+  startedAt           DateTime  @default(now()) @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+
+  flow                ConversationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  messages            ConversationMessage[]
+
+  @@unique([flowId, userIgId])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id                  String    @id @default(uuid())
+  conversationId      String    @map("conversation_id")
+  stepId              String?   @map("step_id")
+
+  direction           String    // "outgoing" or "incoming"
+  messageText         String    @map("message_text")
+  attachmentUrl       String?   @map("attachment_url")
+
+  // Status
+  status              String    @default("pending") // "pending", "sent", "delivered", "failed"
+  errorMessage        String?   @map("error_message")
+
+  sentAt              DateTime? @map("sent_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("conversation_messages")
+}
+
+// ============================================
+// SCHEDULED REMINDERS
+// ============================================
+
+model ScheduledReminder {
+  id                  String    @id @default(uuid())
+  automationId        String    @map("automation_id")
+  igAccountId         String    @map("ig_account_id")
+
+  // Target user
+  recipientIgId       String    @map("recipient_ig_id")
+  recipientUsername   String    @map("recipient_username")
+
+  // Reminder content
+  messageText         String    @map("message_text")
+  attachmentUrl       String?   @map("attachment_url")
+  attachmentType      String?   @map("attachment_type")
+
+  // Scheduling
+  scheduledAt         DateTime  @map("scheduled_at")
+  reminderType        String    @map("reminder_type") // "one_time", "recurring"
+  recurringInterval   Int?      @map("recurring_interval") // Hours between reminders
+  maxReminders        Int       @default(3) @map("max_reminders")
+  remindersSent       Int       @default(0) @map("reminders_sent")
+
+  // Status
+  status              String    @default("scheduled") // "scheduled", "sent", "cancelled", "completed"
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  sentAt              DateTime? @map("sent_at")
+
+  @@map("scheduled_reminders")
 }

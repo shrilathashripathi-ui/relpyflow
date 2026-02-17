@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Replyflows - Automate Your Instagram DMs & Grow on Autopilot</title>
+  <meta name="description" content="Replyflows automatically sends personalized DMs to commenters on your Instagram posts and reels. Capture leads, drive sales, and scale your Instagram - all automatically." />
+  <meta property="og:title" content="Replyflows - Instagram DM Automation Platform" />
+  <meta property="og:description" content="Engage every commenter with instant, personalized DMs. Capture leads and grow on autopilot." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://replyflows.in" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M15 55 L35 75 L55 35' fill='none' stroke='%233b82f6' stroke-width='12' stroke-linecap='round' stroke-linejoin='round'/><path d='M40 55 L60 75 L80 35' fill='none' stroke='%2360a5fa' stroke-width='12' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: #111827; background: #fff; }
+    a { text-decoration: none; color: inherit; }
+
+    /* Nav */
+    .nav { position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); z-index: 50; border-bottom: 1px solid #f3f4f6; }
+    .nav-inner { max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { font-size: 24px; font-weight: 800; background: linear-gradient(to right, #9333ea, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: #4b5563; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: #111827; }
+    .nav-buttons { display: flex; align-items: center; gap: 16px; }
+    .btn-text { color: #4b5563; font-weight: 500; cursor: pointer; border: none; background: none; font-size: 15px; }
+    .btn-text:hover { color: #111827; }
+    .btn-primary { padding: 10px 20px; background: linear-gradient(to right, #9333ea, #ec4899); color: #fff; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; font-size: 15px; transition: box-shadow 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary:hover { box-shadow: 0 10px 25px rgba(147,51,234,0.3); }
+    .btn-primary-lg { padding: 16px 32px; font-size: 18px; border-radius: 12px; }
+    .btn-dark { padding: 12px 0; width: 100%; background: #111827; color: #fff; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; font-size: 15px; }
+    .btn-dark:hover { background: #1f2937; }
+    .btn-white { padding: 12px 0; width: 100%; background: #fff; color: #9333ea; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; font-size: 15px; }
+    .btn-white:hover { background: #f9fafb; }
+    .btn-white-lg { padding: 16px 32px; font-size: 18px; display: inline-flex; align-items: center; gap: 8px; width: auto; }
+
+    /* Hero */
+    .hero { padding: 120px 24px 64px; max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 48px; }
+    .hero-left { flex: 1; }
+    .hero-right { flex: 1; max-width: 512px; }
+    .meta-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px; color: #1d4ed8; font-size: 14px; font-weight: 500; margin-bottom: 24px; }
+    .hero h1 { font-size: 52px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; color: #111827; }
+    .hero h1 span { background: linear-gradient(to right, #9333ea, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 20px; color: #4b5563; margin-bottom: 32px; max-width: 540px; line-height: 1.6; }
+    .hero-cta { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .hero-cta .note { color: #6b7280; font-size: 14px; }
+    .trust-signals { display: flex; gap: 24px; font-size: 14px; color: #6b7280; flex-wrap: wrap; }
+    .trust-signals span { display: flex; align-items: center; gap: 6px; }
+    .check-icon { color: #22c55e; }
+
+    /* Dashboard Preview */
+    .dash-preview { position: relative; }
+    .dash-glow { position: absolute; inset: 0; background: linear-gradient(to right, rgba(147,51,234,0.2), rgba(236,72,153,0.2)); border-radius: 16px; filter: blur(48px); }
+    .dash-card { position: relative; background: #111827; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.25); border: 1px solid #1f2937; }
+    .dash-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #1f2937; border-bottom: 1px solid #374151; }
+    .dash-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dash-dot.r { background: #ef4444; } .dash-dot.y { background: #eab308; } .dash-dot.g { background: #22c55e; }
+    .dash-title { margin-left: 16px; color: #9ca3af; font-size: 14px; }
+    .dash-body { padding: 24px; background: linear-gradient(to bottom right, #111827, #1f2937); }
+    .dash-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .dash-stat { background: rgba(31,41,55,0.5); border-radius: 12px; padding: 12px; border: 1px solid #374151; }
+    .dash-stat label { color: #9ca3af; font-size: 12px; }
+    .dash-stat .val { color: #fff; font-size: 24px; font-weight: 700; }
+    .dash-stat .up { color: #4ade80; font-size: 12px; }
+    .dash-activity { background: rgba(31,41,55,0.5); border-radius: 12px; padding: 12px; border: 1px solid #374151; display: flex; align-items: center; gap: 12px; }
+    .dash-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(to bottom right, #a855f7, #ec4899); flex-shrink: 0; }
+    .dash-activity-text { flex: 1; }
+    .dash-activity-text p { color: #fff; font-size: 14px; font-weight: 500; }
+    .dash-activity-text small { color: #9ca3af; font-size: 12px; }
+    .dash-badge { padding: 4px 8px; background: rgba(34,197,94,0.2); color: #4ade80; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+
+    /* Stats Bar */
+    .stats-bar { padding: 32px 24px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .stats-grid { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center; }
+    .stats-grid .val { font-size: 28px; font-weight: 800; background: linear-gradient(to right, #9333ea, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .stats-grid .label { color: #6b7280; font-size: 14px; }
+
+    /* Features */
+    .section { padding: 80px 24px; max-width: 1280px; margin: 0 auto; }
+    .section-gray { background: #f9fafb; }
+    .section-title { text-align: center; margin-bottom: 48px; }
+    .section-title h2 { font-size: 36px; font-weight: 800; color: #111827; margin-bottom: 16px; }
+    .section-title p { font-size: 18px; color: #4b5563; max-width: 640px; margin: 0 auto; }
+
+    .features-layout { display: flex; gap: 32px; }
+    .features-list { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .feature-btn { width: 100%; text-align: left; padding: 20px; border-radius: 16px; border: 2px solid transparent; background: #fff; cursor: pointer; transition: all 0.2s; }
+    .feature-btn:hover { background: #f9fafb; }
+    .feature-btn.active { background: linear-gradient(to right, #faf5ff, #fdf2f8); border-color: #e9d5ff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .feature-btn .inner { display: flex; align-items: flex-start; gap: 16px; }
+    .feature-num { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+    .feature-btn .feature-num { background: #f3f4f6; color: #9ca3af; }
+    .feature-btn.active .feature-num { background: linear-gradient(to bottom right, #9333ea, #ec4899); color: #fff; }
+    .feature-btn h3 { font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+    .feature-btn.active h3 { color: #7e22ce; }
+    .feature-btn .desc { font-size: 14px; color: #4b5563; display: none; margin-top: 4px; line-height: 1.5; }
+    .feature-btn.active .desc { display: block; }
+    .features-demo { flex: 1; position: sticky; top: 96px; }
+
+    /* Demo Cards */
+    .demo-card { background: #111827; border-radius: 16px; padding: 24px; color: #fff; min-height: 380px; display: flex; flex-direction: column; justify-content: center; }
+    .demo-label { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .demo-comment { background: #1f2937; border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+    .demo-comment-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(to bottom right, #a855f7, #ec4899); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .demo-comment-user { color: #fff; font-weight: 500; font-size: 14px; }
+    .demo-comment-text { color: #d1d5db; font-size: 14px; }
+    .demo-arrow { text-align: center; margin: 8px 0; color: #a855f7; }
+    .demo-dm { background: linear-gradient(to right, rgba(147,51,234,0.2), rgba(236,72,153,0.2)); border: 1px solid rgba(147,51,234,0.3); border-radius: 12px; padding: 16px; }
+    .demo-dm p { font-size: 14px; margin-bottom: 8px; }
+    .demo-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #9333ea; border-radius: 8px; font-size: 12px; font-weight: 500; }
+    .demo-status { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
+    .demo-status .sent { padding: 4px 10px; background: rgba(34,197,94,0.2); color: #4ade80; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .demo-status .time { color: #6b7280; font-size: 12px; }
+
+    /* How It Works */
+    .hiw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 960px; margin: 0 auto; }
+    .hiw-card { position: relative; }
+    .hiw-num { position: absolute; top: -16px; left: -16px; width: 48px; height: 48px; background: linear-gradient(to bottom right, #9333ea, #ec4899); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; box-shadow: 0 4px 12px rgba(147,51,234,0.4); }
+    .hiw-card-inner { background: #fff; border-radius: 16px; padding: 32px; padding-top: 48px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #f3f4f6; height: 100%; }
+    .hiw-card-inner h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #111827; }
+    .hiw-card-inner p { color: #4b5563; line-height: 1.6; }
+
+    /* Pricing */
+    .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; max-width: 896px; margin: 0 auto; }
+    .price-card { background: #fff; border-radius: 16px; padding: 32px; border: 2px solid #e5e7eb; transition: border-color 0.2s; }
+    .price-card:hover { border-color: #e9d5ff; }
+    .price-card h3 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .price-card .subtitle { color: #6b7280; margin-bottom: 16px; }
+    .price-card .price { font-size: 48px; font-weight: 800; }
+    .price-card .period { color: #6b7280; }
+    .price-card .inr { color: #a78bfa; font-size: 14px; margin-top: 4px; }
+    .price-card ul { list-style: none; margin: 24px 0; }
+    .price-card li { display: flex; align-items: center; gap: 12px; padding: 6px 0; color: #374151; font-size: 15px; }
+    .price-card li .ck { color: #22c55e; flex-shrink: 0; }
+    .price-pro { position: relative; background: linear-gradient(to bottom right, #9333ea, #ec4899); color: #fff; border: none; box-shadow: 0 20px 40px rgba(147,51,234,0.3); }
+    .price-pro .subtitle { color: rgba(255,255,255,0.7); }
+    .price-pro .period { color: rgba(255,255,255,0.7); }
+    .price-pro .inr { color: rgba(255,255,255,0.6); }
+    .price-pro li { color: #fff; }
+    .price-pro li .ck { color: #fff; }
+    .popular-badge { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); padding: 4px 16px; background: #facc15; color: #713f12; border-radius: 999px; font-size: 14px; font-weight: 600; }
+
+    /* Comparison Table */
+    .comparison { max-width: 896px; margin: 48px auto 0; }
+    .comparison h3 { text-align: center; font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+    .comparison table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb; }
+    .comparison th, .comparison td { padding: 12px 24px; font-size: 14px; }
+    .comparison th { background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-weight: 500; color: #4b5563; }
+    .comparison th:last-child { color: #9333ea; }
+    .comparison td:first-child { text-align: left; color: #374151; }
+    .comparison td:nth-child(2), .comparison td:nth-child(3) { text-align: center; }
+    .comparison tr:nth-child(even) { background: #f9fafb; }
+    .comparison .ck { color: #22c55e; } .comparison .ck-pro { color: #a855f7; }
+    .comparison .dash { color: #d1d5db; }
+
+    /* FAQ */
+    .faq-list { max-width: 768px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; overflow: hidden; }
+    .faq-q { width: 100%; text-align: left; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; background: none; border: none; cursor: pointer; font-size: 16px; font-weight: 600; color: #111827; font-family: inherit; }
+    .faq-q:hover { background: #f9fafb; }
+    .faq-arrow { transition: transform 0.2s; font-size: 20px; color: #9ca3af; }
+    .faq-item.open .faq-arrow { transform: rotate(180deg); }
+    .faq-a { padding: 0 24px 20px; color: #4b5563; line-height: 1.6; display: none; }
+    .faq-item.open .faq-a { display: block; }
+
+    /* CTA */
+    .cta { padding: 80px 24px; }
+    .cta-card { max-width: 896px; margin: 0 auto; background: linear-gradient(to bottom right, #9333ea, #ec4899); border-radius: 24px; padding: 64px; text-align: center; color: #fff; position: relative; overflow: hidden; }
+    .cta-card h2 { font-size: 40px; font-weight: 800; margin-bottom: 16px; }
+    .cta-card p { font-size: 20px; color: rgba(255,255,255,0.8); margin-bottom: 32px; max-width: 640px; margin-left: auto; margin-right: auto; }
+    .cta-note { margin-top: 16px; color: rgba(255,255,255,0.6); font-size: 14px; }
+
+    /* Footer */
+    .footer { padding: 48px 24px; border-top: 1px solid #f3f4f6; }
+    .footer-inner { max-width: 1280px; margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 32px; }
+    .footer-brand p { color: #4b5563; font-size: 14px; margin-top: 12px; }
+    .footer-meta { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: #6b7280; font-size: 14px; }
+    .footer h4 { font-weight: 600; color: #111827; margin-bottom: 16px; }
+    .footer ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .footer ul a { color: #4b5563; font-size: 14px; transition: color 0.2s; }
+    .footer ul a:hover { color: #9333ea; }
+    .footer-bottom { padding-top: 32px; border-top: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; }
+    .footer-bottom p { color: #6b7280; font-size: 14px; }
+
+    /* Meta SVG inline */
+    .meta-svg { width: 20px; height: 20px; vertical-align: middle; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero { flex-direction: column; padding-top: 100px; text-align: center; }
+      .hero h1 { font-size: 36px; }
+      .hero-right { max-width: 100%; }
+      .hero-cta { justify-content: center; }
+      .trust-signals { justify-content: center; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .features-layout { flex-direction: column; }
+      .hiw-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .cta-card { padding: 40px 24px; }
+      .cta-card h2 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="brand">Replyflows</a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="nav-buttons">
+        <a href="https://app.replyflows.in/login" class="btn-text">Log in</a>
+        <a href="https://app.replyflows.in/register" class="btn-primary">Get Started Free</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="meta-badge">
+        <svg class="meta-svg" viewBox="0 0 100 100" fill="none"><path d="M28.5 25C18 25 10 35 10 50C10 65 18 75 28.5 75C35 75 40 71 50 55C60 71 65 75 71.5 75C82 75 90 65 90 50C90 35 82 25 71.5 25C65 25 60 29 50 45C40 29 35 25 28.5 25ZM28.5 35C33 35 37 39 45 52L50 60L55 52C63 39 67 35 71.5 35C76 35 80 41 80 50C80 59 76 65 71.5 65C67 65 63 61 55 48L50 40L45 48C37 61 33 65 28.5 65C24 65 20 59 20 50C20 41 24 35 28.5 35Z" fill="#0080FB"/></svg>
+        Meta Business Partner
+      </div>
+      <h1>Automate Your Instagram DMs & <span>Grow on Autopilot</span></h1>
+      <p>Engage every commenter with instant, personalized DMs. Capture leads, drive sales, and scale your Instagram - all automatically.</p>
+      <div class="hero-cta">
+        <a href="https://app.replyflows.in/register" class="btn-primary btn-primary-lg">Get Started Free &rarr;</a>
+        <span class="note">No credit card required</span>
+      </div>
+      <div class="trust-signals">
+        <span><span class="check-icon">&#10003;</span> 1,000 free DMs/month</span>
+        <span><span class="check-icon">&#10003;</span> No coding needed</span>
+        <span><span class="check-icon">&#10003;</span> Official Meta API</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="dash-preview">
+        <div class="dash-glow"></div>
+        <div class="dash-card">
+          <div class="dash-bar">
+            <div class="dash-dot r"></div><div class="dash-dot y"></div><div class="dash-dot g"></div>
+            <span class="dash-title">Replyflows Dashboard</span>
+          </div>
+          <div class="dash-body">
+            <div class="dash-stats">
+              <div class="dash-stat"><label>DMs Sent</label><div class="val">1,247</div><div class="up">+23%</div></div>
+              <div class="dash-stat"><label>Reply Rate</label><div class="val">47%</div><div class="up">+8%</div></div>
+              <div class="dash-stat"><label>Leads</label><div class="val">203</div><div class="up">+15%</div></div>
+            </div>
+            <div class="dash-activity">
+              <div class="dash-avatar"></div>
+              <div class="dash-activity-text"><p>@user commented "PRICE"</p><small>Auto DM sent with pricing link</small></div>
+              <span class="dash-badge">Sent</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats-bar">
+    <div class="stats-grid">
+      <div><div class="val">10M+</div><div class="label">DMs Automated</div></div>
+      <div><div class="val">5,000+</div><div class="label">Active Users</div></div>
+      <div><div class="val">47%</div><div class="label">Avg Reply Rate</div></div>
+      <div><div class="val">4.9/5</div><div class="label">User Rating</div></div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="section">
+    <div class="section-title">
+      <h2>See It In Action</h2>
+      <p>Click on any feature to see exactly how it works</p>
+    </div>
+    <div class="features-layout">
+      <div class="features-list">
+        <button class="feature-btn active" onclick="showFeature(0)">
+          <div class="inner"><div class="feature-num">1</div><div><h3>Auto-DM from Comments</h3><div class="desc">Someone comments a keyword on your Reel? They instantly get a personalized DM with your link, offer, or message.</div></div></div>
+        </button>
+        <button class="feature-btn" onclick="showFeature(1)">
+          <div class="inner"><div class="feature-num">2</div><div><h3>Keyword Triggers</h3><div class="desc">Set custom keywords like "LINK", "INFO", or "BUY". Any comment containing your keyword triggers an instant DM.</div></div></div>
+        </button>
+        <button class="feature-btn" onclick="showFeature(2)">
+          <div class="inner"><div class="feature-num">3</div><div><h3>Lead Capture in DMs</h3><div class="desc">Collect emails, phone numbers, and custom data directly through DM conversations. Export to CSV anytime.</div></div></div>
+        </button>
+        <button class="feature-btn" onclick="showFeature(3)">
+          <div class="inner"><div class="feature-num">4</div><div><h3>Smart Follow-ups</h3><div class="desc">No reply? Auto-send a follow-up message after 24 hours. Bring back interested leads who forgot to respond.</div></div></div>
+        </button>
+        <button class="feature-btn" onclick="showFeature(4)">
+          <div class="inner"><div class="feature-num">5</div><div><h3>Analytics & Insights</h3><div class="desc">Track DMs sent, reply rates, conversion events, and top-performing keywords. All in a clean dashboard.</div></div></div>
+        </button>
+      </div>
+      <div class="features-demo">
+        <div class="demo-card" id="demo-0">
+          <div class="demo-label">Instagram Comment</div>
+          <div class="demo-comment"><div class="demo-comment-avatar">P</div><div><div class="demo-comment-user">@priya_style</div><div class="demo-comment-text">PRICE</div></div></div>
+          <div class="demo-arrow">&#8595;</div>
+          <div class="demo-label">Auto DM Sent</div>
+          <div class="demo-dm"><p>Hey Priya! Here's the pricing for our collection. Use code INSTA10 for 10% off!</p><span class="demo-link">&#128279; shop.example.com/pricing</span></div>
+          <div class="demo-status"><span class="sent">Delivered</span><span class="time">Just now</span></div>
+        </div>
+        <div class="demo-card" id="demo-1" style="display:none">
+          <div class="demo-label">Active Keyword Triggers</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px">
+            <span style="padding:8px 16px;background:rgba(147,51,234,0.2);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#c4b5fd;font-size:14px;font-weight:500">#PRICE</span>
+            <span style="padding:8px 16px;background:rgba(147,51,234,0.2);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#c4b5fd;font-size:14px;font-weight:500">#LINK</span>
+            <span style="padding:8px 16px;background:rgba(147,51,234,0.2);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#c4b5fd;font-size:14px;font-weight:500">#INFO</span>
+            <span style="padding:8px 16px;background:rgba(147,51,234,0.2);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#c4b5fd;font-size:14px;font-weight:500">#BUY</span>
+            <span style="padding:8px 16px;background:rgba(147,51,234,0.2);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#c4b5fd;font-size:14px;font-weight:500">#DETAILS</span>
+          </div>
+          <div style="background:#1f2937;border-radius:12px;padding:16px;display:flex;align-items:center;justify-content:space-between">
+            <div><div style="color:#9ca3af;font-size:14px">Comments matched today</div><div style="color:#fff;font-size:32px;font-weight:700">247</div></div>
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#4ade80;font-size:24px">&#8599;</div>
+          </div>
+        </div>
+        <div class="demo-card" id="demo-2" style="display:none">
+          <div class="demo-label">Lead Capture Form (in DM)</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+            <div style="background:#1f2937;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px"><div style="width:32px;height:32px;background:rgba(147,51,234,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a855f7">&#10003;</div><span style="color:#d1d5db;font-size:14px">Email</span><span style="margin-left:auto;color:#4ade80;font-size:12px">Collected</span></div>
+            <div style="background:#1f2937;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px"><div style="width:32px;height:32px;background:rgba(147,51,234,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a855f7">&#10003;</div><span style="color:#d1d5db;font-size:14px">Phone</span><span style="margin-left:auto;color:#4ade80;font-size:12px">Collected</span></div>
+            <div style="background:#1f2937;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px"><div style="width:32px;height:32px;background:rgba(147,51,234,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a855f7">&#10003;</div><span style="color:#d1d5db;font-size:14px">Name</span><span style="margin-left:auto;color:#4ade80;font-size:12px">Collected</span></div>
+          </div>
+          <div style="background:linear-gradient(to right,rgba(22,163,74,0.15),rgba(16,185,129,0.15));border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:16px;text-align:center">
+            <div style="color:#4ade80;font-size:28px;font-weight:700">89</div><div style="color:rgba(74,222,128,0.7);font-size:14px">Leads captured this week</div>
+          </div>
+        </div>
+        <div class="demo-card" id="demo-3" style="display:none">
+          <div class="demo-label">Smart Follow-up Sequence</div>
+          <div style="background:#1f2937;border-radius:12px;padding:16px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;background:#4ade80;border-radius:50%"></div><span style="color:#9ca3af;font-size:12px">Day 0 - Instant</span></div><p style="font-size:14px">Hey! Here's your link</p></div>
+          <div style="text-align:center;color:#6b7280;font-size:12px;padding:4px 0">&#8595; 24h wait &#8595;</div>
+          <div style="background:linear-gradient(to right,rgba(147,51,234,0.15),rgba(236,72,153,0.15));border:1px solid rgba(147,51,234,0.3);border-radius:12px;padding:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;background:#a855f7;border-radius:50%"></div><span style="color:#9ca3af;font-size:12px">Day 1 - Follow-up</span></div><p style="font-size:14px">Just checking in - did you get a chance to look?</p></div>
+          <div style="text-align:center;margin-top:16px;color:#a855f7;font-size:14px;font-weight:500">+38% reply rate with follow-ups</div>
+        </div>
+        <div class="demo-card" id="demo-4" style="display:none">
+          <div class="demo-label">This Week's Performance</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+            <div style="background:#1f2937;border-radius:12px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700">1,247</div><div style="color:#9ca3af;font-size:12px">Sent</div></div>
+            <div style="background:#1f2937;border-radius:12px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#60a5fa">586</div><div style="color:#9ca3af;font-size:12px">Replied</div></div>
+            <div style="background:#1f2937;border-radius:12px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80">203</div><div style="color:#9ca3af;font-size:12px">Converted</div></div>
+          </div>
+          <div style="background:#1f2937;border-radius:12px;padding:16px">
+            <div style="color:#9ca3af;font-size:12px;margin-bottom:12px">Conversion Funnel</div>
+            <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:#9ca3af">DMs Sent</span><span>100%</span></div><div style="height:8px;background:#374151;border-radius:999px"><div style="height:8px;background:#a855f7;border-radius:999px;width:100%"></div></div></div>
+            <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:#9ca3af">Replied</span><span>47%</span></div><div style="height:8px;background:#374151;border-radius:999px"><div style="height:8px;background:#3b82f6;border-radius:999px;width:47%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:#9ca3af">Converted</span><span>16%</span></div><div style="height:8px;background:#374151;border-radius:999px"><div style="height:8px;background:#22c55e;border-radius:999px;width:16%"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section id="how-it-works" class="section-gray" style="padding:80px 24px">
+    <div style="max-width:960px;margin:0 auto">
+      <div class="section-title">
+        <h2>How It Works</h2>
+        <p>Set up in under 2 minutes. No coding required.</p>
+      </div>
+      <div class="hiw-grid">
+        <div class="hiw-card"><div class="hiw-num">1</div><div class="hiw-card-inner"><h3>Connect Your Instagram</h3><p>Link your Instagram business account through official Meta APIs. Secure, verified, and takes 30 seconds.</p></div></div>
+        <div class="hiw-card"><div class="hiw-num">2</div><div class="hiw-card-inner"><h3>Set Keywords & Messages</h3><p>Choose trigger keywords and write your DM. When someone comments your keyword, they get your message instantly.</p></div></div>
+        <div class="hiw-card"><div class="hiw-num">3</div><div class="hiw-card-inner"><h3>Watch Leads Roll In</h3><p>Sit back while Replyflows auto-DMs commenters, captures leads, and follows up. Check your dashboard for results.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="section">
+    <div class="section-title">
+      <h2>Simple, Transparent Pricing</h2>
+      <p>Start free. Upgrade when you're ready.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Free</h3>
+        <div class="subtitle">Everything you need to get started</div>
+        <div style="margin-bottom:24px"><span class="price">$0</span><span class="period">/forever</span></div>
+        <ul>
+          <li><span class="ck">&#10003;</span> 1,000 DMs per month</li>
+          <li><span class="ck">&#10003;</span> 1,000 contacts</li>
+          <li><span class="ck">&#10003;</span> Keyword triggers</li>
+          <li><span class="ck">&#10003;</span> Conversion event tracking</li>
+          <li><span class="ck">&#10003;</span> Metrics & logs</li>
+          <li><span class="ck">&#10003;</span> Community access</li>
+        </ul>
+        <a href="https://app.replyflows.in/register" class="btn-dark">Start Free</a>
+      </div>
+      <div class="price-card price-pro">
+        <div class="popular-badge">Most Popular</div>
+        <h3>Pro</h3>
+        <div class="subtitle">For creators ready to scale</div>
+        <div style="margin-bottom:24px"><span class="price">$5</span><span class="period">/month</span><div class="inr">~ &#8377;500/month</div></div>
+        <ul>
+          <li><span class="ck">&#10003;</span> Unlimited DMs</li>
+          <li><span class="ck">&#10003;</span> Unlimited contacts</li>
+          <li><span class="ck">&#10003;</span> Unlimited keyword triggers</li>
+          <li><span class="ck">&#10003;</span> Smart follow-ups</li>
+          <li><span class="ck">&#10003;</span> Lead capture & CSV export</li>
+          <li><span class="ck">&#10003;</span> Advanced analytics</li>
+          <li><span class="ck">&#10003;</span> Priority support</li>
+        </ul>
+        <a href="https://app.replyflows.in/register" class="btn-white">Start Pro Trial</a>
+      </div>
+    </div>
+    <div class="comparison">
+      <h3>Feature Comparison</h3>
+      <table>
+        <thead><tr><th style="text-align:left">Feature</th><th>Free</th><th>Pro</th></tr></thead>
+        <tbody>
+          <tr><td>DMs per month</td><td>1,000</td><td style="color:#7e22ce;font-weight:500">Unlimited</td></tr>
+          <tr><td>Contacts</td><td>1,000</td><td style="color:#7e22ce;font-weight:500">Unlimited</td></tr>
+          <tr><td>Keyword triggers</td><td>3</td><td style="color:#7e22ce;font-weight:500">Unlimited</td></tr>
+          <tr><td>Follow-ups</td><td><span class="dash">-</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>Lead capture</td><td><span class="dash">-</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>Advanced analytics</td><td><span class="dash">-</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>CSV export</td><td><span class="dash">-</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>Priority support</td><td><span class="dash">-</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>Community access</td><td><span class="ck">&#10003;</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+          <tr><td>Conversion tracking</td><td><span class="ck">&#10003;</span></td><td><span class="ck-pro">&#10003;</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section-gray" style="padding:80px 24px">
+    <div style="max-width:768px;margin:0 auto">
+      <div class="section-title">
+        <h2>Frequently Asked Questions</h2>
+      </div>
+      <div class="faq-list">
+        <div class="faq-item" onclick="toggleFaq(this)"><button class="faq-q">Will my Instagram account get blocked?<span class="faq-arrow">&#9662;</span></button><div class="faq-a">No. Replyflows is a verified Meta Business Partner. We use official Instagram APIs only - no scraping, no automation hacks. Your account is 100% safe.</div></div>
+        <div class="faq-item" onclick="toggleFaq(this)"><button class="faq-q">Will the DMs sound robotic?<span class="faq-arrow">&#9662;</span></button><div class="faq-a">Not at all. You write your own messages in your own voice. Add personalization variables like the commenter's name. Your followers won't know it's automated.</div></div>
+        <div class="faq-item" onclick="toggleFaq(this)"><button class="faq-q">Do I need any coding knowledge?<span class="faq-arrow">&#9662;</span></button><div class="faq-a">Zero coding needed. Connect your account, set a keyword, write a message - that's it. The entire setup takes under 2 minutes.</div></div>
+        <div class="faq-item" onclick="toggleFaq(this)"><button class="faq-q">What's the difference between Free and Pro?<span class="faq-arrow">&#9662;</span></button><div class="faq-a">Free gives you 1,000 DMs/month, 1,000 contacts, and keyword triggers. Pro at &#8377;500/month gives you unlimited DMs, unlimited keywords, priority support, and advanced analytics.</div></div>
+        <div class="faq-item" onclick="toggleFaq(this)"><button class="faq-q">Can I cancel anytime?<span class="faq-arrow">&#9662;</span></button><div class="faq-a">Yes, cancel anytime from your dashboard. No contracts, no hidden fees. Your account stays active until the end of your billing period.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta">
+    <div class="cta-card">
+      <h2>Ready to Automate Your Instagram DMs?</h2>
+      <p>Join thousands of creators who grow their business on autopilot with Replyflows.</p>
+      <a href="https://app.replyflows.in/register" class="btn-white btn-white-lg">Get Started Free &rarr;</a>
+      <div class="cta-note">No credit card required - 1,000 free DMs/month</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <span class="brand">Replyflows</span>
+          <p>Automate your Instagram DMs and turn comments into customers.</p>
+          <div class="footer-meta">
+            <svg class="meta-svg" viewBox="0 0 100 100" fill="none"><path d="M28.5 25C18 25 10 35 10 50C10 65 18 75 28.5 75C35 75 40 71 50 55C60 71 65 75 71.5 75C82 75 90 65 90 50C90 35 82 25 71.5 25C65 25 60 29 50 45C40 29 35 25 28.5 25ZM28.5 35C33 35 37 39 45 52L50 60L55 52C63 39 67 35 71.5 35C76 35 80 41 80 50C80 59 76 65 71.5 65C67 65 63 61 55 48L50 40L45 48C37 61 33 65 28.5 65C24 65 20 59 20 50C20 41 24 35 28.5 35Z" fill="#0080FB"/></svg>
+            Meta Business Partner
+          </div>
+        </div>
+        <div><h4>Product</h4><ul><li><a href="#features">Features</a></li><li><a href="#pricing">Pricing</a></li><li><a href="#faq">FAQ</a></li></ul></div>
+        <div><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">Blog</a></li><li><a href="#">Contact</a></li></ul></div>
+        <div><h4>Legal</h4><ul><li><a href="/privacy-policy">Privacy Policy</a></li><li><a href="/terms">Terms of Service</a></li><li><a href="/data-deletion">Data Deletion</a></li></ul></div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Replyflows. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function showFeature(idx) {
+      document.querySelectorAll('.feature-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+      for (let i = 0; i < 5; i++) {
+        document.getElementById('demo-' + i).style.display = i === idx ? 'flex' : 'none';
+      }
+    }
+    function toggleFaq(el) {
+      el.classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

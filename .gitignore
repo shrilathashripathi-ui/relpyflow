@@ -28,3 +28,17 @@ build/
 # Testing
 coverage/
 /src/generated/prisma
+
+# Backend duplicate (code is now in root src/)
+backend/
+
+# Session data
+instagram-session.json
+*.png
+debug-*.html
+
+# Sensitive scripts
+save-instagram-*.js
+test-*.js
+direct-migrate.js
+nul
