@@ -144,6 +144,7 @@ router.get('/callback', async (req, res) => {
 router.post('/direct-login', protect, async (req, res) => {
   const puppeteer = require('puppeteer-extra');
   const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  const { getLaunchOptions } = require('../utils/browserHelper');
   puppeteer.use(StealthPlugin());
 
   let browser = null;
@@ -157,17 +158,8 @@ router.post('/direct-login', protect, async (req, res) => {
 
     console.log(`🔐 Attempting direct login for @${username}...`);
 
-    // Launch headless browser
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
+    // Launch headless browser with proper Chrome path
+    browser = await puppeteer.launch(getLaunchOptions());
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1366, height: 768 });

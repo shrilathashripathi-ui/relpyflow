@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { PrismaClient } = require('@prisma/client');
 const { decrypt } = require('../../utils/encryption');
+const { getLaunchOptions } = require('../../utils/browserHelper');
 
 puppeteer.use(StealthPlugin());
 
@@ -20,16 +21,7 @@ class PuppeteerDMService {
   async init() {
     console.log(`🚀 Initializing browser for @${this.account.username}...`);
 
-    this.browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
+    this.browser = await puppeteer.launch(getLaunchOptions());
 
     this.page = await this.browser.newPage();
     await this.page.setViewport({ width: 1366, height: 768 });
