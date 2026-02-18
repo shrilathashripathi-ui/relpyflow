@@ -17,7 +17,7 @@ const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
 const commentPoller = require('./services/instagram/commentPoller');
 const dmQueueWorker = require('./services/dmQueueWorker');
 const uptimeMonitor = require('./services/uptimeMonitor');
-const aiReplyService = require('./services/aiReplyService');
+// const aiReplyService = require('./services/aiReplyService');
 const dmConversationHandler = require('./services/dmConversationHandler');
 
 const app = express();
@@ -167,12 +167,6 @@ app.listen(PORT, () => {
   console.log('📊 Starting uptime monitor...');
   uptimeMonitor.start(60000); // Check every minute
 
-  // Initialize AI service if API key is set
-  if (process.env.OPENAI_API_KEY) {
-    aiReplyService.init();
-  } else {
-    console.log('⚠️ OPENAI_API_KEY not set - AI replies disabled');
-  }
 
   // Auto-start workers in production or if enabled
   if (process.env.AUTO_START_WORKERS === 'true') {
