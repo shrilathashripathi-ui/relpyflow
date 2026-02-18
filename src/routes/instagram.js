@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const { encrypt } = require('../utils/encryption');
@@ -137,6 +138,169 @@ router.get('/callback', async (req, res) => {
     console.error('OAuth Callback Error:', error.response?.data || error.message);
     const errorMsg = error.response?.data?.error?.message || error.message;
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=${encodeURIComponent(errorMsg)}`);
+  }
+});
+
+// ============================================================
+// Instagram OAuth Login (Official Instagram API - like ManyChat)
+// ============================================================
+
+// Start Instagram OAuth - returns the Instagram authorization URL
+router.get('/auth/instagram', protect, (req, res) => {
+  try {
+    const appId = process.env.INSTAGRAM_APP_ID;
+    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/instagram/callback/instagram`;
+
+    if (!appId) {
+      return res.status(500).json({ error: 'Instagram App ID not configured' });
+    }
+
+    // Create signed state with userId (10 min expiry)
+    const state = jwt.sign(
+      { userId: req.user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '10m' }
+    );
+
+    const scopes = [
+      'instagram_business_basic',
+      'instagram_business_manage_messages',
+      'instagram_business_manage_comments'
+    ].join(',');
+
+    const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
+
+    console.log('🔗 Instagram OAuth URL generated for user:', req.user.id);
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('Instagram auth URL error:', error);
+    res.status(500).json({ error: 'Failed to generate authorization URL' });
+  }
+});
+
+// Instagram OAuth Callback - handles the redirect from Instagram
+router.get('/callback/instagram', async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  try {
+    const { code, state, error, error_reason, error_description } = req.query;
+
+    // Handle OAuth errors
+    if (error) {
+      console.error('Instagram OAuth error:', error, error_reason, error_description);
+      return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(error_description || error_reason || error)}`);
+    }
+
+    if (!code || !state) {
+      return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('No authorization code received')}`);
+    }
+
+    // Verify state JWT to get userId
+    let userId;
+    try {
+      const decoded = jwt.verify(state, process.env.JWT_SECRET);
+      userId = decoded.userId;
+    } catch (e) {
+      console.error('Invalid state token:', e.message);
+      return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('Authorization expired. Please try again.')}`);
+    }
+
+    const appId = process.env.INSTAGRAM_APP_ID;
+    const appSecret = process.env.INSTAGRAM_APP_SECRET;
+    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/instagram/callback/instagram`;
+
+    // Step 1: Exchange code for short-lived access token
+    console.log('🔑 Exchanging code for access token...');
+    const tokenResponse = await axios.post(
+      'https://api.instagram.com/oauth/access_token',
+      new URLSearchParams({
+        client_id: appId,
+        client_secret: appSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code,
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const shortLivedToken = tokenResponse.data.access_token;
+    const igUserId = tokenResponse.data.user_id?.toString();
+
+    console.log('✅ Got short-lived token for IG user:', igUserId);
+
+    // Step 2: Exchange for long-lived token (60 days)
+    console.log('🔄 Exchanging for long-lived token...');
+    const longLivedResponse = await axios.get('https://graph.instagram.com/access_token', {
+      params: {
+        grant_type: 'ig_exchange_token',
+        client_secret: appSecret,
+        access_token: shortLivedToken,
+      }
+    });
+
+    const longLivedToken = longLivedResponse.data.access_token;
+    const expiresIn = longLivedResponse.data.expires_in; // seconds (typically 5184000 = 60 days)
+    const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
+
+    console.log('✅ Got long-lived token, expires:', tokenExpiry.toISOString());
+
+    // Step 3: Get user profile
+    console.log('👤 Fetching Instagram profile...');
+    const profileResponse = await axios.get(`https://graph.instagram.com/v21.0/me`, {
+      params: {
+        fields: 'user_id,username,name,profile_picture_url',
+        access_token: longLivedToken,
+      }
+    });
+
+    const profile = profileResponse.data;
+    const username = profile.username;
+
+    console.log('✅ Instagram profile:', username);
+
+    // Step 4: Create or update InstagramAccount
+    const existingAccount = await prisma.instagramAccount.findFirst({
+      where: { username }
+    });
+
+    if (existingAccount) {
+      if (existingAccount.userId === userId) {
+        // Same user - update token
+        await prisma.instagramAccount.update({
+          where: { id: existingAccount.id },
+          data: {
+            igUserId: igUserId || profile.user_id?.toString(),
+            accessToken: longLivedToken,
+            accessTokenExpiry: tokenExpiry,
+            useOfficialApi: true,
+            status: 'active',
+          }
+        });
+        console.log(`✅ Updated account @${username}`);
+      } else {
+        return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(`@${username} is already connected to another account.`)}`);
+      }
+    } else {
+      await prisma.instagramAccount.create({
+        data: {
+          userId,
+          igUserId: igUserId || profile.user_id?.toString(),
+          username,
+          accessToken: longLivedToken,
+          accessTokenExpiry: tokenExpiry,
+          useOfficialApi: true,
+          status: 'active',
+        }
+      });
+      console.log(`✅ Created account @${username}`);
+    }
+
+    res.redirect(`${frontendUrl}/connect-instagram?success=true&username=${encodeURIComponent(username)}`);
+
+  } catch (error) {
+    console.error('Instagram OAuth callback error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error_message || error.response?.data?.error?.message || error.message;
+    res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(errorMsg)}`);
   }
 });
 
