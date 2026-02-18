@@ -305,9 +305,9 @@ const Settings = () => {
                         <div className="flex flex-col items-center text-center">
                           {/* Profile Picture */}
                           <div className="w-24 h-24 rounded-full overflow-hidden mb-4 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-                            {account.profilePicUrl ? (
+                            {account.profilePictureUrl ? (
                               <img
-                                src={account.profilePicUrl}
+                                src={account.profilePictureUrl}
                                 alt={account.username}
                                 className="w-full h-full object-cover"
                               />

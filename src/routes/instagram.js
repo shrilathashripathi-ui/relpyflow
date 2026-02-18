@@ -273,6 +273,7 @@ router.get('/callback/instagram', async (req, res) => {
             igUserId: igUserId || profile.user_id?.toString(),
             accessToken: longLivedToken,
             accessTokenExpiry: tokenExpiry,
+            profilePictureUrl: profile.profile_picture_url || null,
             useOfficialApi: true,
             status: 'active',
           }
@@ -289,6 +290,7 @@ router.get('/callback/instagram', async (req, res) => {
           username,
           accessToken: longLivedToken,
           accessTokenExpiry: tokenExpiry,
+          profilePictureUrl: profile.profile_picture_url || null,
           useOfficialApi: true,
           status: 'active',
         }
@@ -763,6 +765,7 @@ router.get('/accounts', protect, async (req, res) => {
       select: {
         id: true,
         username: true,
+        profilePictureUrl: true,
         status: true,
         createdAt: true,
       },
@@ -790,11 +793,33 @@ router.get('/accounts/:id/media', protect, async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
+    // Official API path for OAuth-connected accounts
+    if (account.useOfficialApi && account.accessToken) {
+      try {
+        const officialApiService = require('../services/instagram/officialApiService');
+        const mediaItems = await officialApiService.getUserMedia(account.accessToken, account.igUserId);
+        const media = mediaItems.map(item => ({
+          id: item.id,
+          thumbnail_url: item.thumbnail_url || item.media_url,
+          media_url: item.media_url,
+          caption: item.caption || '',
+          media_type: item.media_type,
+          permalink: item.permalink,
+          timestamp: item.timestamp,
+        }));
+        return res.json({ media });
+      } catch (officialError) {
+        console.error('Official API media fetch error:', officialError.response?.data || officialError.message);
+        return res.status(500).json({ error: 'Failed to fetch media from Instagram API' });
+      }
+    }
+
+    // Legacy session-based path (Puppeteer accounts)
     if (!account.sessionCookies) {
       return res.status(400).json({ error: 'Account session not available. Please reconnect.' });
     }
 
-    // Fetch media from Instagram
+    // Fetch media from Instagram (legacy)
     const headers = {
       'User-Agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Cookie': account.sessionCookies,
