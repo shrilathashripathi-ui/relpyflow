@@ -171,6 +171,7 @@ router.get('/auth/instagram', protect, (req, res) => {
     const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
 
     console.log('🔗 Instagram OAuth URL generated for user:', req.user.id);
+    console.log('🔗 App ID:', appId, '| Redirect URI:', redirectUri);
     res.json({ authUrl });
   } catch (error) {
     console.error('Instagram auth URL error:', error);
@@ -708,7 +709,21 @@ router.delete('/account/:id', protect, async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // Delete the account
+    // Revoke Instagram app permissions so next OAuth asks for username/password
+    if (account.accessToken && account.igUserId) {
+      try {
+        await axios.delete(
+          `https://graph.instagram.com/${account.igUserId}/permissions`,
+          { params: { access_token: account.accessToken } }
+        );
+        console.log(`🔓 Revoked Instagram permissions for @${account.username}`);
+      } catch (revokeError) {
+        // Don't fail deletion if revocation fails (token may be expired)
+        console.warn(`⚠️ Could not revoke Instagram permissions for @${account.username}:`, revokeError.response?.data || revokeError.message);
+      }
+    }
+
+    // Delete the account from database
     await prisma.instagramAccount.delete({
       where: { id }
     });
