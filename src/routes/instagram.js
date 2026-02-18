@@ -710,16 +710,31 @@ router.delete('/account/:id', protect, async (req, res) => {
     }
 
     // Revoke Instagram app permissions so next OAuth asks for username/password
-    if (account.accessToken && account.igUserId) {
+    if (account.accessToken) {
       try {
-        await axios.delete(
-          `https://graph.instagram.com/${account.igUserId}/permissions`,
-          { params: { access_token: account.accessToken } }
-        );
+        // Try revoking via Instagram Graph API (me/permissions)
+        await axios.delete('https://graph.instagram.com/me/permissions', {
+          params: { access_token: account.accessToken }
+        });
         console.log(`🔓 Revoked Instagram permissions for @${account.username}`);
       } catch (revokeError) {
-        // Don't fail deletion if revocation fails (token may be expired)
-        console.warn(`⚠️ Could not revoke Instagram permissions for @${account.username}:`, revokeError.response?.data || revokeError.message);
+        console.warn(`⚠️ Instagram revoke failed:`,
+          JSON.stringify(revokeError.response?.data),
+          revokeError.response?.status,
+          revokeError.message
+        );
+        // Try Facebook Graph API as fallback
+        try {
+          await axios.delete('https://graph.facebook.com/me/permissions', {
+            params: { access_token: account.accessToken }
+          });
+          console.log(`🔓 Revoked via Facebook API for @${account.username}`);
+        } catch (fbError) {
+          console.warn(`⚠️ Facebook revoke also failed:`,
+            JSON.stringify(fbError.response?.data),
+            fbError.response?.status
+          );
+        }
       }
     }
 
