@@ -709,7 +709,21 @@ router.delete('/account/:id', protect, async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // Delete the account
+    // Revoke Instagram app permissions so next OAuth asks for username/password
+    if (account.accessToken && account.igUserId) {
+      try {
+        await axios.delete(
+          `https://graph.instagram.com/${account.igUserId}/permissions`,
+          { params: { access_token: account.accessToken } }
+        );
+        console.log(`🔓 Revoked Instagram permissions for @${account.username}`);
+      } catch (revokeError) {
+        // Don't fail deletion if revocation fails (token may be expired)
+        console.warn(`⚠️ Could not revoke Instagram permissions for @${account.username}:`, revokeError.response?.data || revokeError.message);
+      }
+    }
+
+    // Delete the account from database
     await prisma.instagramAccount.delete({
       where: { id }
     });
