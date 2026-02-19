@@ -168,7 +168,7 @@ router.get('/auth/instagram', protect, (req, res) => {
       'instagram_business_manage_comments'
     ].join(',');
 
-    const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
+    const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&auth_type=reauthenticate&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
 
     console.log('🔗 Instagram OAuth URL generated for user:', req.user.id);
     console.log('🔗 App ID:', appId, '| Redirect URI:', redirectUri);
