@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "start": "npx prisma generate && npx prisma db push && node src/server.js",
+    "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "build": "npx prisma generate && npx prisma db push",
     "migrate": "node src/config/migrate.js",
