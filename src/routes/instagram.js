@@ -182,7 +182,7 @@ router.get('/auth/instagram', protect, (req, res) => {
 
 // Instagram OAuth Callback - handles the redirect from Instagram
 router.get('/callback/instagram', async (req, res) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   try {
     const { code, state, error, error_reason, error_description } = req.query;

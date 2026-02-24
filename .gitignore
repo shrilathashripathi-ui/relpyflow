@@ -4,7 +4,10 @@ node_modules/
 # Environment
 .env
 .env.local
-.env.production
+/.env.production
+
+# Allow frontend production env (public API URL only, no secrets)
+!frontend/.env.production
 
 # Logs
 logs/

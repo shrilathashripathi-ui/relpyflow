@@ -22,47 +22,29 @@ const dmConversationHandler = require('./services/dmConversationHandler');
 
 const app = express();
 
-// CORS configuration for ngrok and local development
+// CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (mobile apps, curl, server-to-server, health checks)
     if (!origin) return callback(null, true);
 
-    // Allowed origins
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-    ];
-
-    // Allow ngrok URLs
-    if (origin.includes('ngrok') || origin.includes('ngrok-free.app')) {
-      return callback(null, true);
+    if (process.env.NODE_ENV === 'production') {
+      // Production: strict whitelist only
+      const productionOrigins = [
+        'https://app.replyflows.in',
+        'https://replyflows.in',
+      ];
+      if (process.env.FRONTEND_URL) {
+        productionOrigins.push(process.env.FRONTEND_URL);
+      }
+      if (productionOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
     }
 
-    // Allow production frontend
-    if (origin === 'https://app.replyflows.in') {
-      return callback(null, true);
-    }
-
-    // Allow custom frontend URL from env
-    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-      return callback(null, true);
-    }
-
-    // Check against allowed origins
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // In development, allow all
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-
-    callback(new Error('Not allowed by CORS'));
+    // Development: allow all origins (localhost, ngrok, etc.)
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -77,8 +59,8 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve static files (privacy policy, terms, data deletion pages)
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Note: Static marketing content (index.html) is served from Vercel at replyflows.in
+// Only serve legal pages from public/ for Meta App Review compatibility
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -116,8 +98,27 @@ app.get('/health/ping', (req, res) => {
   res.send('pong');
 });
 
-// Worker control endpoints
-app.post('/api/workers/start', (req, res) => {
+// Simple health endpoint for DigitalOcean App Platform / external uptime monitors
+app.get('/health/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Admin-only middleware for worker control
+const requireAdmin = (req, res, next) => {
+  const adminSecret = process.env.ADMIN_SECRET;
+  const provided = req.headers['x-admin-secret'];
+  if (!adminSecret || provided !== adminSecret) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+};
+
+// Worker control endpoints (protected)
+app.post('/api/workers/start', requireAdmin, (req, res) => {
   commentPoller.start();
   dmQueueWorker.start();
   dmConversationHandler.startConversationHandler();
@@ -130,7 +131,7 @@ app.post('/api/workers/start', (req, res) => {
   res.json({ message: 'Workers started' });
 });
 
-app.post('/api/workers/stop', (req, res) => {
+app.post('/api/workers/stop', requireAdmin, (req, res) => {
   commentPoller.stop();
   dmQueueWorker.stop();
   dmConversationHandler.stopConversationHandler();
@@ -143,8 +144,8 @@ app.post('/api/workers/stop', (req, res) => {
   res.json({ message: 'Workers stopped' });
 });
 
-// Worker status endpoint
-app.get('/api/workers/status', (req, res) => {
+// Worker status endpoint (protected)
+app.get('/api/workers/status', requireAdmin, (req, res) => {
   res.json({
     commentPoller: {
       running: commentPoller.isRunning,
