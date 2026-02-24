@@ -26,6 +26,14 @@ const ConnectInstagram = () => {
       window.history.replaceState({}, '', '/connect-instagram');
     }
 
+    // Check if there's a returnTo stored (user was redirected here from another page)
+    const storedReturnTo = localStorage.getItem('ig_connect_returnTo');
+    if (storedReturnTo && params.get('success') === 'true') {
+      localStorage.removeItem('ig_connect_returnTo');
+      navigate(storedReturnTo);
+      return;
+    }
+
     if (!hasFetched.current) {
       hasFetched.current = true;
       fetchAccounts();
@@ -43,12 +51,16 @@ const ConnectInstagram = () => {
     }
   };
 
-  const handleConnectInstagram = async () => {
+  const handleConnectInstagram = async (returnTo) => {
     setConnectLoading(true);
     setError('');
 
     try {
-      const response = await instagramAPI.getInstagramAuthUrl();
+      // Store returnTo so we can redirect after OAuth callback
+      if (returnTo) {
+        localStorage.setItem('ig_connect_returnTo', returnTo);
+      }
+      const response = await instagramAPI.getInstagramAuthUrl(returnTo);
       const authUrl = response.data.authUrl;
       window.location.href = authUrl;
     } catch (err) {
@@ -143,7 +155,10 @@ const ConnectInstagram = () => {
 
             {/* Login with Instagram Button */}
             <button
-              onClick={handleConnectInstagram}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                handleConnectInstagram(params.get('returnTo') || '');
+              }}
               disabled={connectLoading}
               className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:opacity-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2.5 text-base"
             >
@@ -188,10 +203,14 @@ const ConnectInstagram = () => {
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">
-                        {account.username?.charAt(0).toUpperCase() || 'I'}
-                      </span>
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      {account.profilePictureUrl ? (
+                        <img src={account.profilePictureUrl} alt={account.username} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-bold text-lg">
+                          {account.username?.charAt(0).toUpperCase() || 'I'}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-800">

@@ -54,7 +54,7 @@ export const authAPI = {
 // Instagram endpoints
 export const instagramAPI = {
   getAuthUrl: () => api.get('/instagram/auth'),
-  getInstagramAuthUrl: () => api.get('/instagram/auth/instagram'),
+  getInstagramAuthUrl: (returnTo) => api.get('/instagram/auth/instagram', { params: { returnTo } }),
   saveAccount: (data) => api.post('/instagram/account', data),
   getAccounts: () => api.get('/instagram/accounts'),
   getMedia: (accountId) => api.get(`/instagram/accounts/${accountId}/media`),

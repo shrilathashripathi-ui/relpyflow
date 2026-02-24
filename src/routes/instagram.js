@@ -155,9 +155,10 @@ router.get('/auth/instagram', protect, (req, res) => {
       return res.status(500).json({ error: 'Instagram App ID not configured' });
     }
 
-    // Create signed state with userId (10 min expiry)
+    // Create signed state with userId and optional returnTo (10 min expiry)
+    const returnTo = req.query.returnTo || '';
     const state = jwt.sign(
-      { userId: req.user.id },
+      { userId: req.user.id, returnTo },
       process.env.JWT_SECRET,
       { expiresIn: '10m' }
     );
@@ -196,11 +197,13 @@ router.get('/callback/instagram', async (req, res) => {
       return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('No authorization code received')}`);
     }
 
-    // Verify state JWT to get userId
+    // Verify state JWT to get userId and returnTo
     let userId;
+    let returnTo = '';
     try {
       const decoded = jwt.verify(state, process.env.JWT_SECRET);
       userId = decoded.userId;
+      returnTo = decoded.returnTo || '';
     } catch (e) {
       console.error('Invalid state token:', e.message);
       return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('Authorization expired. Please try again.')}`);

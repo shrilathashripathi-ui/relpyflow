@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { instagramAPI, subscriptionAPI, authAPI } from '../utils/api';
 import api from '../utils/api';
 
 const Settings = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -109,9 +111,9 @@ const Settings = () => {
 
     try {
       await instagramAPI.deleteAccount(accountId);
-      setAccounts(accounts.filter(a => a.id !== accountId));
       setSuccess(`@${username} has been disconnected`);
       setTimeout(() => setSuccess(''), 3000);
+      await fetchData();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to disconnect account');
     }
@@ -131,14 +133,8 @@ const Settings = () => {
     }
   };
 
-  const handleActivateSubscription = async () => {
-    try {
-      await subscriptionAPI.startTrial();
-      setSuccess('Subscription activated!');
-      fetchData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to activate subscription');
-    }
+  const handleActivateSubscription = () => {
+    navigate('/pricing');
   };
 
   const tabs = [
@@ -404,7 +400,7 @@ const Settings = () => {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
-                      Activate Subscription
+                      View Plans & Subscribe
                     </button>
                   </div>
                 )}

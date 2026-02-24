@@ -79,8 +79,12 @@ const Sidebar = () => {
             onClick={() => setShowAccountDropdown(!showAccountDropdown)}
             className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-all"
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold">
-              {selectedAccount?.username?.charAt(0).toUpperCase() || '?'}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
+              {selectedAccount?.profilePictureUrl ? (
+                <img src={selectedAccount.profilePictureUrl} alt={selectedAccount.username} className="w-full h-full object-cover" />
+              ) : (
+                selectedAccount?.username?.charAt(0).toUpperCase() || '?'
+              )}
             </div>
             <div className="flex-1 text-left">
               <p className="font-medium text-gray-800 text-sm">
@@ -104,8 +108,12 @@ const Sidebar = () => {
                   }}
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {account.username.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-semibold">
+                    {account.profilePictureUrl ? (
+                      <img src={account.profilePictureUrl} alt={account.username} className="w-full h-full object-cover" />
+                    ) : (
+                      account.username.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <span className="text-sm text-gray-700">@{account.username}</span>
                 </button>
