@@ -273,7 +273,7 @@ router.get('/callback/instagram', async (req, res) => {
         await prisma.instagramAccount.update({
           where: { id: existingAccount.id },
           data: {
-            igUserId: igUserId || profile.user_id?.toString(),
+            igUserId: igUserId || profile.user_id?.toString() || profile.id?.toString(),
             accessToken: longLivedToken,
             accessTokenExpiry: tokenExpiry,
             profilePictureUrl: profile.profile_picture_url || null,
@@ -289,7 +289,7 @@ router.get('/callback/instagram', async (req, res) => {
       await prisma.instagramAccount.create({
         data: {
           userId,
-          igUserId: igUserId || profile.user_id?.toString(),
+          igUserId: igUserId || profile.user_id?.toString() || profile.id?.toString(),
           username,
           accessToken: longLivedToken,
           accessTokenExpiry: tokenExpiry,

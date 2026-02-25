@@ -105,11 +105,12 @@ class OfficialInstagramApiService {
    * Requires: instagram_business_basic permission
    */
   async getUserMedia(accessToken, igUserId) {
-    console.log(`📡 [Official API] Fetching media for user ${igUserId}`);
+    const userId = igUserId || 'me';
+    console.log(`📡 [Official API] Fetching media for user ${userId}`);
 
     try {
       const response = await axios.get(
-        `${GRAPH_API_BASE}/${igUserId}/media`,
+        `${GRAPH_API_BASE}/${userId}/media`,
         {
           params: {
             access_token: accessToken,

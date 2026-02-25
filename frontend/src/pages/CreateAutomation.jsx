@@ -233,8 +233,13 @@ const CreateAutomation = () => {
     } catch (error) {
       console.error('Error fetching media:', error);
       const cachedMedia = getCachedMedia(accountId);
-      if (cachedMedia && cachedMedia.length > 0) setMedia(cachedMedia);
-      if (error.response?.status === 429) setMediaError('Instagram rate limited. Try again in a few minutes.');
+      if (cachedMedia && cachedMedia.length > 0) {
+        setMedia(cachedMedia);
+      } else if (error.response?.status === 429) {
+        setMediaError('Instagram rate limited. Try again in a few minutes.');
+      } else {
+        setMediaError(error.response?.data?.error || 'Failed to fetch posts. Please try again.');
+      }
     } finally {
       setLoadingMedia(false);
     }
