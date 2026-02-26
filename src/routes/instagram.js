@@ -61,9 +61,6 @@ router.get('/callback', async (req, res) => {
       params: { access_token: fbAccessToken }
     });
 
-    console.log('=== DEBUG: Pages Response ===');
-    console.log(JSON.stringify(pagesResponse.data, null, 2));
-
     const pages = pagesResponse.data.data;
 
     if (!pages || pages.length === 0) {
@@ -71,9 +68,6 @@ router.get('/callback', async (req, res) => {
       const debugResponse = await axios.get('https://graph.facebook.com/v18.0/me/permissions', {
         params: { access_token: fbAccessToken }
       });
-      console.log('=== DEBUG: Permissions ===');
-      console.log(JSON.stringify(debugResponse.data, null, 2));
-
       // Also try to get user info
       const meResponse = await axios.get('https://graph.facebook.com/v18.0/me', {
         params: {
@@ -81,9 +75,6 @@ router.get('/callback', async (req, res) => {
           fields: 'id,name,accounts{id,name,access_token,instagram_business_account}'
         }
       });
-      console.log('=== DEBUG: Me Response with accounts ===');
-      console.log(JSON.stringify(meResponse.data, null, 2));
-
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No Facebook Pages found. Please connect a Facebook Page to your Instagram account.`);
     }
 
