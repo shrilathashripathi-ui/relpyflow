@@ -4,17 +4,32 @@ const rateLimit = require('express-rate-limit');
  * Rate Limiting Middleware
  *
  * Protects against brute force attacks, API abuse, and DDoS.
- * Uses IP-based limiting via express-rate-limit.
+ *
+ * Strategy:
+ * - Unauthenticated routes (login, register, OAuth): IP-based only
+ *   This is correct — before auth, IP is the only identifier.
+ * - Authenticated routes (API, sync, workers): User ID + IP hybrid
+ *   Prevents shared-IP false positives (coworking spaces, mobile carriers)
+ *   while still protecting against abuse.
+ * - Webhooks: IP-based (Meta/Razorpay have known IPs, high burst)
  *
  * Behind a reverse proxy (DigitalOcean App Platform), req.ip
  * is set from X-Forwarded-For when trust proxy is enabled.
  */
 
+// ─── Key Generator: User ID if authenticated, IP if not ─────────
+const userOrIpKey = (req) => {
+  // req.user is set by the protect middleware (JWT auth)
+  if (req.user?.id) return `user_${req.user.id}`;
+  return req.ip;
+};
+
 // ─── Global API Limiter ──────────────────────────────────────────
-// Applies to ALL /api/* routes
+// Applies to ALL /api/* routes (keyed by user when authenticated)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,                  // 200 requests per 15 min per IP
+  max: 200,                  // 200 requests per 15 min per user/IP
+  keyGenerator: userOrIpKey,
   standardHeaders: true,     // Return rate limit info in RateLimit-* headers
   legacyHeaders: false,      // Disable X-RateLimit-* headers
   message: {
@@ -24,7 +39,8 @@ const globalLimiter = rateLimit({
 });
 
 // ─── Auth Route Limiter (Strict) ─────────────────────────────────
-// Login + Register: prevent brute force and credential stuffing
+// Login + Register: IP-only (user is not yet authenticated)
+// Prevents brute force and credential stuffing
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,                   // 10 attempts per 15 min per IP
@@ -38,7 +54,7 @@ const authLimiter = rateLimit({
 });
 
 // ─── OAuth Route Limiter ─────────────────────────────────────────
-// Instagram OAuth initiation: prevent abuse of redirect flow
+// Instagram OAuth initiation: IP-only (prevent redirect abuse)
 const oauthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 15,                   // 15 OAuth attempts per 15 min per IP
@@ -51,10 +67,12 @@ const oauthLimiter = rateLimit({
 });
 
 // ─── Media/Sync Limiter ─────────────────────────────────────────
-// Instagram media fetch, account sync: prevent excessive API calls
+// Instagram media fetch, account sync: keyed by user
+// (coworking space users shouldn't block each other)
 const syncLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,  // 5 minutes
-  max: 30,                    // 30 requests per 5 min per IP
+  max: 30,                    // 30 requests per 5 min per user/IP
+  keyGenerator: userOrIpKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -64,10 +82,10 @@ const syncLimiter = rateLimit({
 });
 
 // ─── Webhook Limiter (Relaxed) ──────────────────────────────────
-// Meta/Razorpay webhooks: higher limits since these come from Meta servers
+// Meta/Razorpay webhooks: IP-based, higher limits (Meta can burst)
 const webhookLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,  // 1 minute
-  max: 100,                   // 100 per minute (Meta can burst)
+  max: 100,                   // 100 per minute
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -76,7 +94,7 @@ const webhookLimiter = rateLimit({
 });
 
 // ─── Worker Control Limiter ─────────────────────────────────────
-// Admin worker endpoints: very strict (already behind requireAdmin)
+// Admin worker endpoints: IP-based, very strict (already behind requireAdmin)
 const workerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,                   // 10 per 15 min
