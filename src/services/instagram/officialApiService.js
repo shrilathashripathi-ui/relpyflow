@@ -124,7 +124,30 @@ class OfficialInstagramApiService {
       return media;
     } catch (error) {
       const errorData = error.response?.data?.error || {};
-      console.error('❌ [Official API] Failed to fetch media:', errorData.message || error.message);
+      console.error('❌ [Official API] Failed to fetch media for', userId, ':', errorData.message || error.message, '| code:', errorData.code, '| subcode:', errorData.error_subcode);
+
+      // If userId failed, try 'me' as fallback
+      if (userId !== 'me') {
+        console.log('🔄 [Official API] Retrying with /me/media...');
+        try {
+          const retryResponse = await axios.get(
+            `${GRAPH_API_BASE}/me/media`,
+            {
+              params: {
+                access_token: accessToken,
+                fields: 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url'
+              }
+            }
+          );
+          const media = retryResponse.data?.data || [];
+          console.log(`✅ [Official API] Fetched ${media.length} media items via /me/media`);
+          return media;
+        } catch (retryError) {
+          const retryErrorData = retryError.response?.data?.error || {};
+          console.error('❌ [Official API] /me/media also failed:', retryErrorData.message || retryError.message);
+        }
+      }
+
       throw error;
     }
   }

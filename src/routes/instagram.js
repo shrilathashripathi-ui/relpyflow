@@ -805,8 +805,12 @@ router.get('/accounts/:id/media', protect, async (req, res) => {
         }));
         return res.json({ media });
       } catch (officialError) {
-        console.error('Official API media fetch error:', officialError.response?.data || officialError.message);
-        return res.status(500).json({ error: 'Failed to fetch media from Instagram API' });
+        const errDetail = officialError.response?.data?.error || {};
+        console.error('Official API media fetch error:', errDetail.message || officialError.message, '| code:', errDetail.code);
+        return res.status(500).json({
+          error: `Failed to fetch media: ${errDetail.message || officialError.message}`,
+          code: errDetail.code
+        });
       }
     }
 
