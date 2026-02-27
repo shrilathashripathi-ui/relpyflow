@@ -13,6 +13,15 @@ const analyticsRoutes = require('./routes/analytics');
 const webhookRoutes = require('./routes/webhook');
 const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
 
+// Rate limiting
+const {
+  globalLimiter,
+  authLimiter,
+  oauthLimiter,
+  webhookLimiter,
+  workerLimiter,
+} = require('./middleware/rateLimit');
+
 // Import workers and services
 const commentPoller = require('./services/instagram/commentPoller');
 const dmQueueWorker = require('./services/dmQueueWorker');
@@ -21,6 +30,10 @@ const uptimeMonitor = require('./services/uptimeMonitor');
 const dmConversationHandler = require('./services/dmConversationHandler');
 
 const app = express();
+
+// Trust proxy (DigitalOcean App Platform uses a reverse proxy / load balancer)
+// Required for express-rate-limit to get correct client IP from X-Forwarded-For
+app.set('trust proxy', 1);
 
 // CORS configuration
 const corsOptions = {
@@ -62,15 +75,15 @@ app.use(cookieParser());
 // Note: Static marketing content (index.html) is served from Vercel at replyflows.in
 // Only serve legal pages from public/ for Meta App Review compatibility
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/instagram', instagramRoutes);
-app.use('/api/automation', automationRoutes);
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/conversation-flow', conversationFlowRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/webhook', webhookRoutes);
-app.use('/api/meta/webhook', webhookRoutes);
+// Routes — with rate limiting per group
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/instagram', globalLimiter, instagramRoutes);
+app.use('/api/automation', globalLimiter, automationRoutes);
+app.use('/api/subscription', globalLimiter, subscriptionRoutes);
+app.use('/api/conversation-flow', globalLimiter, conversationFlowRoutes);
+app.use('/api/analytics', globalLimiter, analyticsRoutes);
+app.use('/webhook', webhookLimiter, webhookRoutes);
+app.use('/api/meta/webhook', webhookLimiter, webhookRoutes);
 
 // Legal pages
 app.get('/privacy-policy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy-policy.html')));
@@ -117,8 +130,8 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Worker control endpoints (protected)
-app.post('/api/workers/start', requireAdmin, (req, res) => {
+// Worker control endpoints (protected + rate limited)
+app.post('/api/workers/start', workerLimiter, requireAdmin, (req, res) => {
   commentPoller.start();
   dmQueueWorker.start();
   dmConversationHandler.startConversationHandler();
@@ -131,7 +144,7 @@ app.post('/api/workers/start', requireAdmin, (req, res) => {
   res.json({ message: 'Workers started' });
 });
 
-app.post('/api/workers/stop', requireAdmin, (req, res) => {
+app.post('/api/workers/stop', workerLimiter, requireAdmin, (req, res) => {
   commentPoller.stop();
   dmQueueWorker.stop();
   dmConversationHandler.stopConversationHandler();
@@ -144,8 +157,8 @@ app.post('/api/workers/stop', requireAdmin, (req, res) => {
   res.json({ message: 'Workers stopped' });
 });
 
-// Worker status endpoint (protected)
-app.get('/api/workers/status', requireAdmin, (req, res) => {
+// Worker status endpoint (protected + rate limited)
+app.get('/api/workers/status', workerLimiter, requireAdmin, (req, res) => {
   res.json({
     commentPoller: {
       running: commentPoller.isRunning,

@@ -4,12 +4,13 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const { encrypt } = require('../utils/encryption');
+const { oauthLimiter, syncLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // Start OAuth - Using Facebook Login for Instagram Graph API
-router.get('/auth', protect, (req, res) => {
+router.get('/auth', oauthLimiter, protect, (req, res) => {
   // For Instagram Graph API (Business/Creator accounts), we use Facebook OAuth
   // This gives access to instagram_basic, instagram_manage_comments, instagram_manage_messages
   const scopes = [
@@ -30,7 +31,7 @@ router.get('/auth', protect, (req, res) => {
 });
 
 // OAuth Callback - Handle Facebook OAuth response
-router.get('/callback', async (req, res) => {
+router.get('/callback', oauthLimiter, async (req, res) => {
   try {
     const { code, error, error_description } = req.query;
 
@@ -137,7 +138,7 @@ router.get('/callback', async (req, res) => {
 // ============================================================
 
 // Start Instagram OAuth - returns the Instagram authorization URL
-router.get('/auth/instagram', protect, (req, res) => {
+router.get('/auth/instagram', oauthLimiter, protect, (req, res) => {
   try {
     const appId = process.env.INSTAGRAM_APP_ID;
     const apiBase = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
@@ -173,7 +174,7 @@ router.get('/auth/instagram', protect, (req, res) => {
 });
 
 // Instagram OAuth Callback - handles the redirect from Instagram
-router.get('/callback/instagram', async (req, res) => {
+router.get('/callback/instagram', oauthLimiter, async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   try {
@@ -776,7 +777,7 @@ router.get('/accounts', protect, async (req, res) => {
 });
 
 // Get Posts/Reels for an account
-router.get('/accounts/:id/media', protect, async (req, res) => {
+router.get('/accounts/:id/media', syncLimiter, protect, async (req, res) => {
   try {
     const { id } = req.params;
 
