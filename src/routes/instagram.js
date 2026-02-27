@@ -791,10 +791,11 @@ router.get('/accounts/:id/media', protect, async (req, res) => {
 
     // Official API path for OAuth-connected accounts
     if (account.useOfficialApi && account.accessToken) {
+      console.log(`📡 Media fetch for @${account.username} | igUserId: ${account.igUserId} | hasToken: true`);
       try {
         const officialApiService = require('../services/instagram/officialApiService');
         const mediaItems = await officialApiService.getUserMedia(account.accessToken, account.igUserId);
-        const media = mediaItems.map(item => ({
+        const media = (mediaItems || []).map(item => ({
           id: item.id,
           thumbnail_url: item.thumbnail_url || item.media_url,
           media_url: item.media_url,
@@ -806,10 +807,12 @@ router.get('/accounts/:id/media', protect, async (req, res) => {
         return res.json({ media });
       } catch (officialError) {
         const errDetail = officialError.response?.data?.error || {};
-        console.error('Official API media fetch error:', errDetail.message || officialError.message, '| code:', errDetail.code);
-        return res.status(500).json({
+        const statusCode = officialError.response?.status;
+        console.error(`❌ Media fetch failed for @${account.username} | status: ${statusCode} | code: ${errDetail.code} | message: ${errDetail.message || officialError.message}`);
+        return res.status(statusCode || 500).json({
           error: `Failed to fetch media: ${errDetail.message || officialError.message}`,
-          code: errDetail.code
+          code: errDetail.code,
+          igErrorType: errDetail.type
         });
       }
     }

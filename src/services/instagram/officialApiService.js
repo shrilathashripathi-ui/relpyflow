@@ -12,7 +12,7 @@
 
 const axios = require('axios');
 
-const GRAPH_API_BASE = 'https://graph.instagram.com/v21.0';
+const GRAPH_API_BASE = 'https://graph.instagram.com/v22.0';
 
 class OfficialInstagramApiService {
   /**
@@ -105,50 +105,38 @@ class OfficialInstagramApiService {
    * Requires: instagram_business_basic permission
    */
   async getUserMedia(accessToken, igUserId) {
-    const userId = igUserId || 'me';
-    console.log(`📡 [Official API] Fetching media for user ${userId}`);
+    // Prefer 'me' for Instagram OAuth tokens (more reliable than numeric ID)
+    const endpoints = ['me', igUserId].filter(Boolean);
+    const mediaFields = 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url';
 
-    try {
-      const response = await axios.get(
-        `${GRAPH_API_BASE}/${userId}/media`,
-        {
-          params: {
-            access_token: accessToken,
-            fields: 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url'
-          }
-        }
-      );
-
-      const media = response.data?.data || [];
-      console.log(`✅ [Official API] Fetched ${media.length} media items`);
-      return media;
-    } catch (error) {
-      const errorData = error.response?.data?.error || {};
-      console.error('❌ [Official API] Failed to fetch media for', userId, ':', errorData.message || error.message, '| code:', errorData.code, '| subcode:', errorData.error_subcode);
-
-      // If userId failed, try 'me' as fallback
-      if (userId !== 'me') {
-        console.log('🔄 [Official API] Retrying with /me/media...');
-        try {
-          const retryResponse = await axios.get(
-            `${GRAPH_API_BASE}/me/media`,
-            {
-              params: {
-                access_token: accessToken,
-                fields: 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url'
-              }
+    for (const userId of endpoints) {
+      console.log(`📡 [Official API] Fetching media via /${userId}/media`);
+      try {
+        const response = await axios.get(
+          `${GRAPH_API_BASE}/${userId}/media`,
+          {
+            params: {
+              access_token: accessToken,
+              fields: mediaFields,
+              limit: 25
             }
-          );
-          const media = retryResponse.data?.data || [];
-          console.log(`✅ [Official API] Fetched ${media.length} media items via /me/media`);
-          return media;
-        } catch (retryError) {
-          const retryErrorData = retryError.response?.data?.error || {};
-          console.error('❌ [Official API] /me/media also failed:', retryErrorData.message || retryError.message);
-        }
-      }
+          }
+        );
 
-      throw error;
+        const media = response.data?.data || [];
+        console.log(`✅ [Official API] Fetched ${media.length} media items via /${userId}/media`);
+        return media;
+      } catch (error) {
+        const errorData = error.response?.data?.error || {};
+        console.error(`❌ [Official API] /${userId}/media failed:`, errorData.message || error.message, '| status:', error.response?.status, '| code:', errorData.code);
+
+        // If this was the last endpoint, throw the error
+        if (userId === endpoints[endpoints.length - 1]) {
+          throw error;
+        }
+        // Otherwise try next endpoint
+        console.log('🔄 [Official API] Trying next endpoint...');
+      }
     }
   }
 
