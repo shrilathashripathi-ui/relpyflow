@@ -140,7 +140,8 @@ router.get('/callback', async (req, res) => {
 router.get('/auth/instagram', protect, (req, res) => {
   try {
     const appId = process.env.INSTAGRAM_APP_ID;
-    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/instagram/callback/instagram`;
+    const apiBase = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
+    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${apiBase}/api/instagram/callback/instagram`;
 
     if (!appId) {
       return res.status(500).json({ error: 'Instagram App ID not configured' });
@@ -202,7 +203,8 @@ router.get('/callback/instagram', async (req, res) => {
 
     const appId = process.env.INSTAGRAM_APP_ID;
     const appSecret = process.env.INSTAGRAM_APP_SECRET;
-    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/instagram/callback/instagram`;
+    const apiBase = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
+    const redirectUri = process.env.INSTAGRAM_OAUTH_REDIRECT_URI || `${apiBase}/api/instagram/callback/instagram`;
 
     // Step 1: Exchange code for short-lived access token
     console.log('🔑 Exchanging code for access token...');
