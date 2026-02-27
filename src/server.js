@@ -180,8 +180,8 @@ app.listen(PORT, () => {
   uptimeMonitor.start(60000); // Check every minute
 
 
-  // Auto-start workers in production or if enabled
-  if (process.env.AUTO_START_WORKERS === 'true') {
+  // Auto-start workers in production or if explicitly enabled
+  if (process.env.NODE_ENV === 'production' || process.env.AUTO_START_WORKERS === 'true') {
     console.log('🤖 Auto-starting automation workers...');
     commentPoller.start();
     dmQueueWorker.start();
