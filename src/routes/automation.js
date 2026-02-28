@@ -8,6 +8,54 @@ const crypto = require('crypto');
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Get recent DMs across all user's automations (for dashboard)
+router.get('/recent-dms', protect, async (req, res) => {
+  try {
+    // Get all IG accounts for this user
+    const accounts = await prisma.instagramAccount.findMany({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    const accountIds = accounts.map((a) => a.id);
+
+    if (accountIds.length === 0) {
+      return res.json({ dms: [] });
+    }
+
+    const recentDms = await prisma.dmHistory.findMany({
+      where: { igAccountId: { in: accountIds } },
+      orderBy: { dmSentAt: 'desc' },
+      take: 10,
+    });
+
+    const dms = recentDms.map((dm) => ({
+      id: dm.id,
+      username: `@${dm.recipientUsername}`,
+      keyword: dm.detectedKeyword || '-',
+      status: dm.status === 'sent' ? 'sent' : dm.status === 'failed' ? 'waiting' : 'sent',
+      time: formatRelativeTime(dm.dmSentAt),
+    }));
+
+    res.json({ dms });
+  } catch (error) {
+    console.error('Recent DMs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper to format relative time
+function formatRelativeTime(date) {
+  const now = new Date();
+  const diff = now - new Date(date);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 // Create Automation
 router.post('/', protect, async (req, res) => {
   try {

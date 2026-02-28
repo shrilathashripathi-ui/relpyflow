@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { PrismaClient } = require('@prisma/client');
-const { decrypt } = require('../../utils/encryption');
+const { encrypt, decrypt } = require('../../utils/encryption');
 const { getLaunchOptions } = require('../../utils/browserHelper');
 
 puppeteer.use(StealthPlugin());
@@ -182,19 +182,19 @@ class PuppeteerDMService {
       const sessionCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
       const csrfToken = cookies.find(c => c.name === 'csrftoken')?.value;
 
-      // Update account with new session
+      // Update account with new session (encrypted at rest)
       await prisma.instagramAccount.update({
         where: { id: this.account.id },
         data: {
-          sessionCookies,
-          csrfToken,
+          sessionCookies: encrypt(sessionCookies),
+          csrfToken: encrypt(csrfToken),
           status: 'active',
           reloginFailCount: 0,
           lastReloginAt: new Date()
         }
       });
 
-      // Update local account object
+      // Update local account object (plaintext for in-memory use)
       this.account.sessionCookies = sessionCookies;
       this.account.csrfToken = csrfToken;
 
@@ -791,12 +791,12 @@ class PuppeteerDMService {
       const sessionCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
       const csrfToken = cookies.find(c => c.name === 'csrftoken')?.value;
 
-      // Update account in database
+      // Update account in database (encrypted at rest)
       await prisma.instagramAccount.update({
         where: { id: this.account.id },
         data: {
-          sessionCookies,
-          csrfToken,
+          sessionCookies: encrypt(sessionCookies),
+          csrfToken: encrypt(csrfToken),
           status: 'active'
         }
       });

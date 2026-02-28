@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { automationAPI, subscriptionAPI } from '../utils/api';
+import api, { automationAPI, subscriptionAPI } from '../utils/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -66,14 +66,14 @@ const Dashboard = () => {
         console.log('Could not fetch limits');
       }
 
-      // Mock recent DMs
-      setRecentDMs([
-        { id: 1, username: '@sarah_shopper', keyword: 'PRICE', status: 'replied', time: '2 min ago' },
-        { id: 2, username: '@mikej_store', keyword: 'LINK', status: 'sent', time: '5 min ago' },
-        { id: 3, username: '@emily_creates', keyword: 'discount', status: 'waiting', time: '12 min ago' },
-        { id: 4, username: '@james_ecom', keyword: 'INFO', status: 'replied', time: '1 hour ago' },
-        { id: 5, username: '@lisa_shop', keyword: 'DEAL', status: 'sent', time: '2 hours ago' },
-      ]);
+      // Fetch real recent DMs from API
+      try {
+        const dmRes = await api.get('/automation/recent-dms');
+        setRecentDMs(dmRes.data.dms || []);
+      } catch (e) {
+        console.log('Could not fetch recent DMs');
+        setRecentDMs([]);
+      }
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

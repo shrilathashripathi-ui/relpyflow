@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
 const KeywordMatcher = require('./keywordMatcher');
+const { decryptAccountTokens } = require('../../utils/encryption');
 
 const prisma = new PrismaClient();
 
@@ -90,6 +91,7 @@ class CommentPoller {
       console.log(`   Found ${accounts.length} active account(s)`);
 
       for (const account of accounts) {
+        decryptAccountTokens(account);
         // Check if account was recently polled (rate limit protection)
         const lastPoll = this.lastPollTime[account.id];
         const minPollInterval = 2 * 60 * 1000; // Minimum 2 minutes between polls per account

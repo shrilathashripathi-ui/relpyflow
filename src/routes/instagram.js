@@ -3,7 +3,7 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
-const { encrypt } = require('../utils/encryption');
+const { encrypt, decryptAccountTokens } = require('../utils/encryption');
 const { oauthLimiter, syncLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
@@ -268,7 +268,7 @@ router.get('/callback/instagram', oauthLimiter, async (req, res) => {
           where: { id: existingAccount.id },
           data: {
             igUserId: igUserId || profile.user_id?.toString() || profile.id?.toString(),
-            accessToken: longLivedToken,
+            accessToken: encrypt(longLivedToken),
             accessTokenExpiry: tokenExpiry,
             profilePictureUrl: profile.profile_picture_url || null,
             useOfficialApi: true,
@@ -285,7 +285,7 @@ router.get('/callback/instagram', oauthLimiter, async (req, res) => {
           userId,
           igUserId: igUserId || profile.user_id?.toString() || profile.id?.toString(),
           username,
-          accessToken: longLivedToken,
+          accessToken: encrypt(longLivedToken),
           accessTokenExpiry: tokenExpiry,
           profilePictureUrl: profile.profile_picture_url || null,
           useOfficialApi: true,
@@ -604,8 +604,8 @@ router.post('/direct-login', protect, async (req, res) => {
         await prisma.instagramAccount.update({
           where: { id: existingAccount.id },
           data: {
-            sessionCookies,
-            csrfToken: csrftoken,
+            sessionCookies: encrypt(sessionCookies),
+            csrfToken: encrypt(csrftoken),
             status: 'active',
             encryptedPassword: encrypt(password),
           }
@@ -632,8 +632,8 @@ router.post('/direct-login', protect, async (req, res) => {
         userId: req.user.id,
         igUserId: ds_user_id,
         username,
-        sessionCookies,
-        csrfToken: csrftoken,
+        sessionCookies: encrypt(sessionCookies),
+        csrfToken: encrypt(csrftoken),
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         status: 'active',
         encryptedPassword: encryptedPassword,
@@ -707,6 +707,8 @@ router.delete('/account/:id', protect, async (req, res) => {
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
     }
+
+    decryptAccountTokens(account);
 
     // Revoke Instagram app permissions so next OAuth asks for username/password
     if (account.accessToken) {
@@ -789,6 +791,8 @@ router.get('/accounts/:id/media', syncLimiter, protect, async (req, res) => {
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
     }
+
+    decryptAccountTokens(account);
 
     // Official API path for OAuth-connected accounts
     if (account.useOfficialApi && account.accessToken) {

@@ -65,11 +65,18 @@ const corsOptions = {
 };
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it
-app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }), razorpayWebhookRoutes);
+app.use('/api/razorpay/webhook', webhookLimiter, express.raw({ type: 'application/json' }), razorpayWebhookRoutes);
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({
+  // Save raw body for Meta webhook signature verification
+  verify: (req, res, buf) => {
+    if (req.originalUrl.startsWith('/webhook') || req.originalUrl.startsWith('/api/meta/webhook')) {
+      req.rawBody = buf;
+    }
+  }
+}));
 app.use(cookieParser());
 
 // Note: Static marketing content (index.html) is served from Vercel at replyflows.in

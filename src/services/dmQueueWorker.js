@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const PuppeteerDMService = require('./instagram/puppeteerDmService');
 const officialApi = require('./instagram/officialApiService');
+const { decryptAccountTokens } = require('../utils/encryption');
 
 const prisma = new PrismaClient();
 
@@ -122,6 +123,7 @@ class DMQueueWorker {
     if (dms.length === 0) return;
 
     const account = dms[0].igAccount;
+    decryptAccountTokens(account);
 
     // Use Official Instagram API if account has it enabled
     if (account.useOfficialApi && account.accessToken) {

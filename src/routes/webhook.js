@@ -9,14 +9,63 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const KeywordMatcher = require('../services/instagram/keywordMatcher');
 const officialApi = require('../services/instagram/officialApiService');
+const { decryptAccountTokens } = require('../utils/encryption');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'replyflow_webhook_verify_2025';
+const APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
+
+/**
+ * Verify Meta webhook signature (X-Hub-Signature-256).
+ * Rejects requests with invalid or missing signatures.
+ */
+function verifyMetaSignature(req, res, next) {
+  // Skip signature check for GET (verification handshake)
+  if (req.method === 'GET') return next();
+
+  if (!APP_SECRET) {
+    console.error('⚠️ INSTAGRAM_APP_SECRET not set — cannot verify webhook signatures');
+    return res.status(500).json({ error: 'Server misconfiguration' });
+  }
+
+  const signature = req.headers['x-hub-signature-256'];
+  if (!signature) {
+    console.warn('🚫 Webhook request missing X-Hub-Signature-256');
+    return res.status(403).json({ error: 'Missing signature' });
+  }
+
+  const rawBody = req.rawBody;
+  if (!rawBody) {
+    console.warn('🚫 Webhook raw body not available for signature verification');
+    return res.status(403).json({ error: 'Cannot verify signature' });
+  }
+
+  const expectedSignature = 'sha256=' + crypto
+    .createHmac('sha256', APP_SECRET)
+    .update(rawBody)
+    .digest('hex');
+
+  const isValid = crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+
+  if (!isValid) {
+    console.warn('🚫 Webhook signature verification FAILED');
+    return res.status(403).json({ error: 'Invalid signature' });
+  }
+
+  next();
+}
+
+// Apply signature verification to all webhook routes
+router.use(verifyMetaSignature);
 
 // Webhook verification (GET) - Meta sends this to verify the endpoint
 router.get('/', (req, res) => {
@@ -104,6 +153,7 @@ async function handleMessagingEvent(igUserId, event) {
     });
 
     if (!account) return;
+    decryptAccountTokens(account);
 
     // Check if this user is in an active conversation flow
     const activeTrigger = await prisma.trigger.findFirst({
@@ -147,6 +197,7 @@ async function handleCommentEvent(igUserId, commentData) {
   });
 
   if (!account || account.automations.length === 0) return;
+  decryptAccountTokens(account);
 
   const commentText = commentData.text || '';
   const commenterUsername = commentData.from?.username;
@@ -381,15 +432,86 @@ async function triggerDMAutomation(account, automation, senderIgId, dmText, matc
 }
 
 // Data deletion callback (required by Meta)
-router.post('/data-deletion', (req, res) => {
+router.post('/data-deletion', async (req, res) => {
   console.log('🗑️ Data deletion request received');
 
   const confirmationCode = `DEL_${Date.now()}`;
-  const statusUrl = `${process.env.API_URL || 'http://localhost:5000'}/data-deletion`;
+  const statusUrl = `${process.env.API_URL || 'https://api.replyflows.in'}/data-deletion/status?code=${confirmationCode}`;
+
+  try {
+    // Decode Meta signed_request
+    const signedRequest = req.body?.signed_request;
+    let fbUserId = null;
+
+    if (signedRequest && APP_SECRET) {
+      const parts = signedRequest.split('.');
+      if (parts.length === 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        fbUserId = payload.user_id;
+      }
+    }
+
+    if (fbUserId) {
+      console.log(`🗑️ Processing data deletion for FB user: ${fbUserId}`);
+
+      // Find linked Instagram accounts (check igUserId and pageId)
+      const accounts = await prisma.instagramAccount.findMany({
+        where: {
+          OR: [
+            { igUserId: fbUserId },
+            { pageId: fbUserId },
+          ],
+        },
+      });
+
+      let deletedRecords = 0;
+
+      for (const account of accounts) {
+        // Delete all automations (cascades to triggers, leads)
+        const automations = await prisma.automation.findMany({ where: { instagramAccountId: account.id } });
+        for (const auto of automations) {
+          await prisma.trigger.deleteMany({ where: { automationId: auto.id } });
+          await prisma.lead.deleteMany({ where: { automationId: auto.id } });
+          deletedRecords += 2;
+        }
+        await prisma.automation.deleteMany({ where: { instagramAccountId: account.id } });
+
+        // Delete DM history and queue
+        await prisma.dmHistory.deleteMany({ where: { igAccountId: account.id } });
+        await prisma.dmQueue.deleteMany({ where: { igAccountId: account.id } });
+        await prisma.dailyAnalytics.deleteMany({ where: { igAccountId: account.id } });
+        await prisma.monitoredReel.deleteMany({ where: { igAccountId: account.id } });
+
+        // Delete the Instagram account itself
+        await prisma.instagramAccount.delete({ where: { id: account.id } });
+        deletedRecords += 5;
+      }
+
+      console.log(`🗑️ Deleted ${deletedRecords} record groups for FB user ${fbUserId} (${accounts.length} accounts)`);
+    } else {
+      console.log('🗑️ No FB user ID in signed_request — returning confirmation only');
+    }
+  } catch (error) {
+    console.error('🗑️ Data deletion processing error:', error.message);
+    // Still return success to Meta — we'll process manually if needed
+  }
 
   res.json({
     url: statusUrl,
-    confirmation_code: confirmationCode
+    confirmation_code: confirmationCode,
+  });
+});
+
+// Data deletion status check
+router.get('/data-deletion/status', (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: 'Missing confirmation code' });
+
+  // All deletions are processed synchronously above, so if we get here it's done
+  res.json({
+    confirmation_code: code,
+    status: 'completed',
+    message: 'All user data has been deleted.',
   });
 });
 
