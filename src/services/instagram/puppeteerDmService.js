@@ -24,6 +24,8 @@ class PuppeteerDMService {
     this.browser = await puppeteer.launch(getLaunchOptions());
 
     this.page = await this.browser.newPage();
+    this.page.setDefaultTimeout(30000);           // 30s default for all waitFor*
+    this.page.setDefaultNavigationTimeout(45000); // 45s for goto/navigation
     await this.page.setViewport({ width: 1366, height: 768 });
     await this.page.setUserAgent(this.account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 

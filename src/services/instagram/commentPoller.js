@@ -8,10 +8,31 @@ const prisma = new PrismaClient();
 class CommentPoller {
   constructor() {
     this.isRunning = false;
-    this.pollInterval = 3 * 60 * 1000; // 3 minutes (safer than 30 seconds)
-    this.intervalId = null;
+    this.pollMinMs = 150 * 1000;  // 2.5 minutes
+    this.pollMaxMs = 240 * 1000;  // 4 minutes
+    this.timeoutId = null;
     this.lastPollTime = {};  // Track last poll per account
     this.requestCount = {};  // Track requests per account
+    this.emptyResponseCount = {};  // Track consecutive empty/degraded responses per account
+  }
+
+  /**
+   * Get a jittered poll interval (2.5–4 minutes) to avoid bot heartbeat
+   */
+  getJitteredInterval() {
+    return Math.floor(Math.random() * (this.pollMaxMs - this.pollMinMs)) + this.pollMinMs;
+  }
+
+  /**
+   * Schedule the next poll with jitter
+   */
+  scheduleNextPoll() {
+    if (!this.isRunning) return;
+    const interval = this.getJitteredInterval();
+    this.timeoutId = setTimeout(() => {
+      this.poll();
+      this.scheduleNextPoll();
+    }, interval);
   }
 
   /**
@@ -23,14 +44,13 @@ class CommentPoller {
       return;
     }
 
-    console.log('🚀 Starting comment poller (polling every 3 minutes)...');
+    console.log('🚀 Starting comment poller (jittered 2.5–4 min interval)...');
     this.isRunning = true;
 
     // Wait 10 seconds before first poll to let things settle
     setTimeout(() => {
       this.poll();
-      // Then poll at intervals
-      this.intervalId = setInterval(() => this.poll(), this.pollInterval);
+      this.scheduleNextPoll();
     }, 10000);
   }
 
@@ -38,9 +58,9 @@ class CommentPoller {
    * Stop the comment polling service
    */
   stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
     }
     this.isRunning = false;
     console.log('🛑 Comment poller stopped');
@@ -68,10 +88,11 @@ class CommentPoller {
     console.log(`\n📡 [${new Date().toLocaleTimeString()}] Polling for comments...`);
 
     try {
-      // Get all active Instagram accounts with active automations
+      // Get all active, non-paused Instagram accounts with active automations
       const accounts = await prisma.instagramAccount.findMany({
         where: {
           status: 'active',
+          isPaused: false,
           automations: {
             some: { isActive: true }
           }
@@ -196,15 +217,63 @@ class CommentPoller {
   }
 
   /**
+   * Hard-pause an account via circuit breaker (uses same fields as dmQueueWorker)
+   */
+  async pauseAccountForPolling(account, reason, cooldownMs) {
+    const pausedUntil = new Date(Date.now() + cooldownMs);
+    await prisma.instagramAccount.update({
+      where: { id: account.id },
+      data: {
+        isPaused: true,
+        pauseReason: reason,
+        pausedUntil,
+        lastFailureAt: new Date(),
+        consecutiveFailures: { increment: 1 },
+      },
+    });
+    const hours = Math.round(cooldownMs / 3600000);
+    const mins = Math.round(cooldownMs / 60000);
+    const display = hours >= 1 ? `${hours}h` : `${mins}m`;
+    console.log(`      🔴 @${account.username} PAUSED: "${reason}" — cooldown ${display}`);
+  }
+
+  /**
    * Handle polling errors and update account status
    */
   async handlePollingError(account, error) {
     const errorMessage = error.message || '';
     const statusCode = error.response?.status;
 
-    // Check for automation detection
+    // ── HARD STOPS — pause immediately, don't just skip ──
+
+    // 403: Forbidden — session invalid or detected
+    if (statusCode === 403) {
+      console.log(`      🚫 403 Forbidden for @${account.username} — hard pause 12 hours`);
+      await this.pauseAccountForPolling(account, 'polling_403_forbidden', 12 * 60 * 60 * 1000);
+      return;
+    }
+
+    // 429: Rate limited — Instagram explicitly told us to stop
+    if (statusCode === 429) {
+      console.log(`      🚫 429 Rate Limited for @${account.username} — hard pause 6 hours`);
+      await this.pauseAccountForPolling(account, 'polling_429_rate_limited', 6 * 60 * 60 * 1000);
+      return;
+    }
+
+    // 401: Unauthorized — session expired
+    if (statusCode === 401) {
+      console.log(`      🚫 401 Unauthorized for @${account.username} — session expired, hard pause 12 hours`);
+      await prisma.instagramAccount.update({
+        where: { id: account.id },
+        data: { status: 'session_expired' }
+      });
+      await this.pauseAccountForPolling(account, 'polling_401_session_expired', 12 * 60 * 60 * 1000);
+      return;
+    }
+
+    // Automation detection — harshest pause
     if (errorMessage.includes('automated') || errorMessage.includes('suspicious')) {
-      console.log(`      🚫 Automation detected for @${account.username} - pausing account`);
+      console.log(`      🚫 Automation detected for @${account.username} — hard pause 24 hours`);
       await prisma.instagramAccount.update({
         where: { id: account.id },
         data: {
@@ -213,29 +282,31 @@ class CommentPoller {
           actionBlockCount: { increment: 1 }
         }
       });
+      await this.pauseAccountForPolling(account, 'polling_automation_detected', 24 * 60 * 60 * 1000);
       return;
     }
 
-    // Check for session expiry
-    if (errorMessage.includes('login') || statusCode === 401 || statusCode === 403) {
+    // Soft rate limit hints in error message
+    if (errorMessage.includes('rate') || errorMessage.includes('limit')) {
+      console.log(`      ⏳ Rate limit hint for @${account.username} — hard pause 6 hours`);
+      await this.pauseAccountForPolling(account, 'polling_rate_hint', 6 * 60 * 60 * 1000);
+      return;
+    }
+
+    // Session expiry hints
+    if (errorMessage.includes('login')) {
       console.log(`      ⚠️ Session expired for @${account.username}`);
       await prisma.instagramAccount.update({
         where: { id: account.id },
         data: { status: 'session_expired' }
       });
+      await this.pauseAccountForPolling(account, 'polling_session_expired', 12 * 60 * 60 * 1000);
       return;
     }
 
-    // Check for rate limiting
-    if (statusCode === 429 || errorMessage.includes('rate') || errorMessage.includes('limit')) {
-      console.log(`      ⏳ Rate limited for @${account.username} - waiting...`);
-      // Don't disable, just skip this poll cycle
-      return;
-    }
-
-    // Check for action block
+    // Action block
     if (errorMessage.includes('block') || statusCode === 400) {
-      console.log(`      🚫 Action blocked for @${account.username}`);
+      console.log(`      🚫 Action blocked for @${account.username} — hard pause 24 hours`);
       await prisma.instagramAccount.update({
         where: { id: account.id },
         data: {
@@ -244,7 +315,71 @@ class CommentPoller {
           actionBlockCount: { increment: 1 }
         }
       });
+      await this.pauseAccountForPolling(account, 'polling_action_blocked', 24 * 60 * 60 * 1000);
+      return;
     }
+
+    // Unknown error — log but don't pause (could be network blip)
+    console.log(`      ⚠️ Unknown polling error for @${account.username}: ${statusCode || 'no status'} — ${errorMessage.substring(0, 100)}`);
+  }
+
+  /**
+   * Check response integrity — detect silent API degradation
+   */
+  validateMediaResponse(data, account) {
+    // Got HTML instead of JSON
+    if (typeof data === 'string') {
+      if (data.includes('<!DOCTYPE') || data.includes('<html')) {
+        throw new Error('Session expired - received HTML instead of JSON');
+      }
+      throw new Error('Unexpected string response from media endpoint');
+    }
+
+    // Response is not an object
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response shape: expected object, got ' + typeof data);
+    }
+
+    // Missing expected 'items' field — API structure may have changed
+    if (!('items' in data)) {
+      console.log(`      ⚠️ INTEGRITY: 'items' field missing from feed response for @${account.username}`);
+      console.log(`      ⚠️ Response keys: ${Object.keys(data).join(', ')}`);
+      // Track consecutive degraded responses
+      this.emptyResponseCount[account.id] = (this.emptyResponseCount[account.id] || 0) + 1;
+      if (this.emptyResponseCount[account.id] >= 3) {
+        console.log(`      🚫 INTEGRITY: 3 consecutive degraded responses for @${account.username} — possible API change or soft block`);
+        throw new Error('Response integrity failure: repeated missing items field');
+      }
+      return [];
+    }
+
+    // Reset degradation counter on healthy response
+    this.emptyResponseCount[account.id] = 0;
+    return data.items;
+  }
+
+  /**
+   * Validate comment response integrity
+   */
+  validateCommentsResponse(data, account, mediaId) {
+    if (typeof data === 'string') {
+      if (data.includes('<!DOCTYPE') || data.includes('automated')) {
+        throw new Error('Received HTML - possible automation detection');
+      }
+      throw new Error('Unexpected string response from comments endpoint');
+    }
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid comments response shape: expected object');
+    }
+
+    if (!('comments' in data)) {
+      console.log(`      ⚠️ INTEGRITY: 'comments' field missing for media ${mediaId} @${account.username}`);
+      console.log(`      ⚠️ Response keys: ${Object.keys(data).join(', ')}`);
+      return [];
+    }
+
+    return data.comments;
   }
 
   /**
@@ -263,16 +398,18 @@ class CommentPoller {
         params: {
           count: 12
         },
-        timeout: 30000
+        timeout: 30000,
+        // Log non-200 status codes
+        validateStatus: (status) => {
+          if (status !== 200) {
+            console.log(`      ⚠️ Non-200 from feed endpoint: HTTP ${status} for @${account.username}`);
+          }
+          return status >= 200 && status < 300;
+        }
       }
     );
 
-    // Check if we got HTML instead of JSON (session issue)
-    if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE')) {
-      throw new Error('Session expired - received HTML instead of JSON');
-    }
-
-    return response.data?.items || [];
+    return this.validateMediaResponse(response.data, account);
   }
 
   /**
@@ -329,18 +466,17 @@ class CommentPoller {
           can_support_threading: true,
           permalink_enabled: false
         },
-        timeout: 30000
+        timeout: 30000,
+        validateStatus: (status) => {
+          if (status !== 200) {
+            console.log(`      ⚠️ Non-200 from comments endpoint: HTTP ${status} for media ${mediaId}`);
+          }
+          return status >= 200 && status < 300;
+        }
       }
     );
 
-    // Check if we got HTML instead of JSON
-    if (typeof response.data === 'string') {
-      if (response.data.includes('<!DOCTYPE') || response.data.includes('automated')) {
-        throw new Error('Received HTML - possible automation detection');
-      }
-    }
-
-    return response.data?.comments || [];
+    return this.validateCommentsResponse(response.data, account, mediaId);
   }
 
   /**

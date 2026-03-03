@@ -2,7 +2,14 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const pinoHttp = require('pino-http');
 require('dotenv').config();
+
+// Structured logging: override console.log/error/warn → Pino JSON output
+// This converts all 300+ existing console.log() statements into structured logs
+// with zero refactoring. In production: JSON for DigitalOcean. In dev: pretty-printed.
+const logger = require('./utils/logger');
+logger.overrideConsole();
 
 const authRoutes = require('./routes/auth');
 const instagramRoutes = require('./routes/instagram');
@@ -12,6 +19,8 @@ const conversationFlowRoutes = require('./routes/conversationFlow');
 const analyticsRoutes = require('./routes/analytics');
 const webhookRoutes = require('./routes/webhook');
 const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
+const debugRoutes = require('./routes/debug');
+const accountHealthRoutes = require('./routes/accountHealth');
 
 // Rate limiting
 const {
@@ -19,15 +28,10 @@ const {
   authLimiter,
   oauthLimiter,
   webhookLimiter,
-  workerLimiter,
 } = require('./middleware/rateLimit');
 
-// Import workers and services
-const commentPoller = require('./services/instagram/commentPoller');
-const dmQueueWorker = require('./services/dmQueueWorker');
+// Import services (workers run as separate DO component — see src/workers/workerEntry.js)
 const uptimeMonitor = require('./services/uptimeMonitor');
-// const aiReplyService = require('./services/aiReplyService');
-const dmConversationHandler = require('./services/dmConversationHandler');
 
 const app = express();
 
@@ -79,6 +83,17 @@ app.use(express.json({
 }));
 app.use(cookieParser());
 
+// HTTP request logging — structured JSON in production, pretty in dev
+// Skips health check endpoints to avoid log noise
+app.use(pinoHttp({
+  logger,
+  autoLogging: {
+    ignore: (req) => req.url === '/health' || req.url === '/health/ping' || req.url === '/health/status',
+  },
+  // Redact auth headers from request logs
+  redact: ['req.headers.authorization', 'req.headers.cookie'],
+}));
+
 // Note: Static marketing content (index.html) is served from Vercel at replyflows.in
 // Only serve legal pages from public/ for Meta App Review compatibility
 
@@ -91,6 +106,8 @@ app.use('/api/conversation-flow', globalLimiter, conversationFlowRoutes);
 app.use('/api/analytics', globalLimiter, analyticsRoutes);
 app.use('/webhook', webhookLimiter, webhookRoutes);
 app.use('/api/meta/webhook', webhookLimiter, webhookRoutes);
+app.use('/debug', globalLimiter, debugRoutes);
+app.use('/api/account-health', globalLimiter, accountHealthRoutes);
 
 // Legal pages
 app.get('/privacy-policy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy-policy.html')));
@@ -104,10 +121,6 @@ app.get('/health', (req, res) => {
     status: status.status,
     uptime: status.uptime.formatted,
     message: 'ReplyFlow API is running',
-    workers: {
-      commentPoller: commentPoller.isRunning,
-      dmQueueWorker: dmQueueWorker.isRunning
-    },
     database: status.database,
     sessions: status.sessions
   });
@@ -127,57 +140,8 @@ app.get('/health/status', (req, res) => {
   });
 });
 
-// Admin-only middleware for worker control
-const requireAdmin = (req, res, next) => {
-  const adminSecret = process.env.ADMIN_SECRET;
-  const provided = req.headers['x-admin-secret'];
-  if (!adminSecret || provided !== adminSecret) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  next();
-};
-
-// Worker control endpoints (protected + rate limited)
-app.post('/api/workers/start', workerLimiter, requireAdmin, (req, res) => {
-  commentPoller.start();
-  dmQueueWorker.start();
-  dmConversationHandler.startConversationHandler();
-
-  // Update uptime monitor
-  uptimeMonitor.setWorkerStatus('commentPoller', true);
-  uptimeMonitor.setWorkerStatus('dmQueueWorker', true);
-  uptimeMonitor.setWorkerStatus('dmConversationHandler', true);
-
-  res.json({ message: 'Workers started' });
-});
-
-app.post('/api/workers/stop', workerLimiter, requireAdmin, (req, res) => {
-  commentPoller.stop();
-  dmQueueWorker.stop();
-  dmConversationHandler.stopConversationHandler();
-
-  // Update uptime monitor
-  uptimeMonitor.setWorkerStatus('commentPoller', false);
-  uptimeMonitor.setWorkerStatus('dmQueueWorker', false);
-  uptimeMonitor.setWorkerStatus('dmConversationHandler', false);
-
-  res.json({ message: 'Workers stopped' });
-});
-
-// Worker status endpoint (protected + rate limited)
-app.get('/api/workers/status', workerLimiter, requireAdmin, (req, res) => {
-  res.json({
-    commentPoller: {
-      running: commentPoller.isRunning,
-      interval: commentPoller.pollInterval
-    },
-    dmQueueWorker: {
-      running: dmQueueWorker.isRunning,
-      processing: dmQueueWorker.isProcessing,
-      interval: dmQueueWorker.processInterval
-    }
-  });
-});
+// Worker status: workers run in a separate DO component (src/workers/workerEntry.js)
+// No worker control endpoints needed in the web server.
 
 const PORT = process.env.PORT || 5000;
 
@@ -200,36 +164,18 @@ app.listen(PORT, () => {
   uptimeMonitor.start(60000); // Check every minute
 
 
-  // Auto-start workers in production or if explicitly enabled
-  if (process.env.NODE_ENV === 'production' || process.env.AUTO_START_WORKERS === 'true') {
-    console.log('🤖 Auto-starting automation workers...');
-    commentPoller.start();
-    dmQueueWorker.start();
-    dmConversationHandler.startConversationHandler();
-
-    uptimeMonitor.setWorkerStatus('commentPoller', true);
-    uptimeMonitor.setWorkerStatus('dmQueueWorker', true);
-    uptimeMonitor.setWorkerStatus('dmConversationHandler', true);
-  } else {
-    console.log('💡 Workers not auto-started. Use POST /api/workers/start to begin automation.');
-  }
+  console.log('💡 Workers run as separate DigitalOcean component (src/workers/workerEntry.js)');
 });
 
-// Graceful shutdown
+// Graceful shutdown (web server only — workers have their own shutdown in workerEntry.js)
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
-  commentPoller.stop();
-  dmQueueWorker.stop();
-  dmConversationHandler.stopConversationHandler();
   uptimeMonitor.stop();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
-  commentPoller.stop();
-  dmQueueWorker.stop();
-  dmConversationHandler.stopConversationHandler();
   uptimeMonitor.stop();
   process.exit(0);
 });

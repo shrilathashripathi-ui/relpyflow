@@ -155,6 +155,24 @@ async function handleMessagingEvent(igUserId, event) {
     if (!account) return;
     decryptAccountTokens(account);
 
+    // Reply rate tracking: mark our most recent DM to this sender as "replied"
+    // This powers ranking suppression detection — if reply rate drops, Instagram
+    // may be silently throttling message visibility.
+    try {
+      await prisma.dmHistory.updateMany({
+        where: {
+          igAccountId: account.id,
+          recipientIgId: senderId,
+          status: 'sent',
+          repliedAt: null, // Only mark once
+        },
+        data: { repliedAt: new Date() },
+      });
+    } catch (err) {
+      // Non-critical — don't block message processing
+      console.warn(`⚠️ [Webhook] Reply tracking failed for sender ${senderId}:`, err.message);
+    }
+
     // Check if this user is in an active conversation flow
     const activeTrigger = await prisma.trigger.findFirst({
       where: {

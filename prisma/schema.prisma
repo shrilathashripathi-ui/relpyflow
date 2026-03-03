@@ -65,6 +65,32 @@ model InstagramAccount {
   lastActionBlockAt   DateTime? @map("last_action_block_at")
   actionBlockCount    Int       @default(0) @map("action_block_count")
 
+  // Circuit breaker
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastFailureAt       DateTime? @map("last_failure_at")
+  isPaused            Boolean   @default(false) @map("is_paused")
+  pauseReason         String?   @map("pause_reason")
+  pausedUntil         DateTime? @map("paused_until")
+
+  // Risk score engine (Phase 2)
+  riskScore           Float     @default(0) @map("risk_score")
+  riskUpdatedAt       DateTime? @map("risk_updated_at")
+
+  // Account personality (Phase 7)
+  behaviorSeed        Float?    @map("behavior_seed")          // 0.0-1.0 random seed (set once on creation)
+  workingHoursStart   Int       @default(9)  @map("working_hours_start")  // Hour (0-23) when account "wakes up"
+  workingHoursEnd     Int       @default(22) @map("working_hours_end")    // Hour (0-23) when account "sleeps"
+  aggressionFactor    Float     @default(1.0) @map("aggression_factor")   // 0.5 = cautious, 1.0 = normal, 1.5 = aggressive
+
+  // User override governance
+  // If true, user has explicitly requested higher throughput despite system warnings.
+  // Override caps throughput at 50% of base max (never full), adds 0.5 risk/hr,
+  // and is auto-revoked after 24h or on first action block.
+  overrideActive      Boolean   @default(false) @map("override_active")
+  overrideRequestedAt DateTime? @map("override_requested_at")
+  overrideExpiresAt   DateTime? @map("override_expires_at")
+  overrideCount       Int       @default(0) @map("override_count")  // Lifetime count — escalating consequence
+
   accountAgeDays      Int       @default(0) @map("account_age_days")
   warmupMode          Boolean   @default(true) @map("warmup_mode")
 
@@ -160,7 +186,10 @@ model DmQueue {
   retryCount        Int       @default(0) @map("retry_count")
   errorCode         String?   @map("error_code")
   errorMessage      String?   @map("error_message")
-  
+
+  // Causal chain: UUID generated at send time, links DM attempt → API response → enforcement event
+  sendAttemptId     String?   @map("send_attempt_id")
+
   createdAt         DateTime  @default(now()) @map("created_at")
   processedAt       DateTime? @map("processed_at")
   sentAt            DateTime? @map("sent_at")
@@ -184,16 +213,28 @@ model DmHistory {
   detectedKeyword   String?   @map("detected_keyword")
   
   messageSent       String?   @map("message_sent")
-  
+
   status            String?
   errorMessage      String?   @map("error_message")
-  
+
+  // Send latency tracking (Phase: silent throttle detection)
+  sendLatencyMs     Int?      @map("send_latency_ms")   // How long the send operation took
+
+  // Reply tracking (Phase: ranking suppression detection)
+  // If the recipient replied to our DM, record when. Null = no reply (yet).
+  repliedAt         DateTime? @map("replied_at")
+
+  // Causal chain: same UUID as DmQueue.sendAttemptId and EnforcementEvent.sendAttemptId
+  // Links: DM attempt → API response → enforcement event → risk adjustment
+  sendAttemptId     String?   @map("send_attempt_id")
+
   dmSentAt          DateTime  @default(now()) @map("dm_sent_at")
 
   igAccount         InstagramAccount @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
   monitoredReel     MonitoredReel? @relation(fields: [monitoredReelId], references: [id], onDelete: SetNull)
 
   @@unique([igAccountId, monitoredReelId, recipientIgId])
+  @@index([igAccountId, dmSentAt])
   @@map("dm_history")
 }
 
@@ -592,4 +633,122 @@ model ScheduledReminder {
   sentAt              DateTime? @map("sent_at")
 
   @@map("scheduled_reminders")
+}
+
+// ============================================
+// ACCOUNT HEALTH SNAPSHOTS (daily metrics for trend detection)
+// ============================================
+
+model AccountHealthSnapshot {
+  id                String    @id @default(uuid())
+  igAccountId       String    @map("ig_account_id")
+
+  date              DateTime  @db.Date // One snapshot per account per day
+
+  // Volume
+  dmsSent           Int       @default(0) @map("dms_sent")
+  dmsFailed         Int       @default(0) @map("dms_failed")
+  dmsDropped        Int       @default(0) @map("dms_dropped")
+  dmsExpired        Int       @default(0) @map("dms_expired")
+
+  // Quality
+  successRate       Float?    @map("success_rate")      // sent / (sent + failed), null if no data
+  avgLatencyMs      Int?      @map("avg_latency_ms")    // Average send latency for the day
+  replyRate         Float?    @map("reply_rate")         // replies received / DMs sent, null if no data
+
+  // Risk
+  riskScoreEnd      Float     @default(0) @map("risk_score_end")  // Risk score at end of day
+
+  // Volatility (standard deviation — high = unstable metrics)
+  successRateStddev Float?    @map("success_rate_stddev")  // Rolling 7-day stddev of daily success rates
+  latencyStddev     Float?    @map("latency_stddev")       // Rolling 7-day stddev of daily avg latency
+  volumeStddev      Float?    @map("volume_stddev")        // Rolling 7-day stddev of daily send volume
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([igAccountId, date])
+  @@index([igAccountId, date])
+  @@map("account_health_snapshots")
+}
+
+// ============================================
+// ENFORCEMENT EVENT LOG (ground truth for calibration)
+// ============================================
+// Every enforcement signal, state transition, and system decision is logged here.
+// This is the ONLY table that allows statistical validation of kill logic,
+// throttle tuning, and health score calibration.
+//
+// Without this table, everything else is hypothesis.
+
+model EnforcementEvent {
+  id                String    @id @default(uuid())
+  igAccountId       String    @map("ig_account_id")
+
+  // Event classification
+  eventType         String    @map("event_type")
+  // Values: action_blocked, rate_limited, session_expired, dm_restricted,
+  //         kill_triggered, throttle_activated, throttle_released,
+  //         override_requested, override_expired, override_revoked,
+  //         unpause, latency_anomaly, success_rate_drop, recovery_detected
+
+  // What triggered this event
+  triggerSource     String    @map("trigger_source")
+  // Values: instagram_api, puppeteer_dom, circuit_breaker, risk_engine,
+  //         kill_threshold, adaptive_baseline, latency_detector, user_action
+
+  // Error context (captured at detection time)
+  errorMessage      String?   @map("error_message")       // Raw error message (up to 1000 chars)
+  httpStatusCode    Int?      @map("http_status_code")     // 429, 400, 401, 403, etc.
+  errorSubcode      String?   @map("error_subcode")        // Meta API error subcode if available
+
+  // Account state snapshot at event time (for calibration)
+  riskScoreAtEvent  Float     @map("risk_score_at_event")  // Risk score when event occurred
+  successRateAtEvent Float?   @map("success_rate_at_event") // 24h success rate
+  latencyAtEvent    Int?      @map("latency_at_event")     // Avg latency (ms) at event time
+  density60AtEvent  Int?      @map("density60_at_event")   // DMs sent in last 60min
+  dailySentAtEvent  Int?      @map("daily_sent_at_event")  // DMs sent today
+
+  // Contextual flags (Advisory #6: without these, post-mortem analysis is noisy)
+  overrideActiveAtEvent  Boolean  @default(false) @map("override_active_at_event")  // Was user override active?
+  accountPausedAtEvent   Boolean  @default(false) @map("account_paused_at_event")   // Was account already paused?
+  volatilityLevelAtEvent String?  @map("volatility_level_at_event")                  // stable/moderate/high at event time
+
+  // Decision model version — enables comparing calibration across logic changes.
+  // If you change thresholds, bump this. Without versioning, future calibration is muddy.
+  controlModelVersion    String   @default("1.0.0") @map("control_model_version")
+
+  // Causal chain: links enforcement event to the specific send attempt that caused it.
+  // sendAttemptId is generated at DM send time and flows through:
+  //   DM attempt → API response → enforcement event → risk adjustment
+  // This turns timestamp correlation into provable causation.
+  sendAttemptId     String?   @map("send_attempt_id")
+
+  // Decision context
+  actionTaken       String    @map("action_taken")
+  // Values: paused_24h, paused_2h, paused_30m, throttled_50pct, throttled_25pct,
+  //         risk_added, override_granted, override_revoked, no_action
+
+  riskDelta         Float?    @map("risk_delta")           // How much risk was added/removed
+  throughputBefore  Int?      @map("throughput_before")    // maxHour before this event
+  throughputAfter   Int?      @map("throughput_after")     // maxHour after this event
+
+  // Recovery tracking (filled in later when account recovers)
+  // Deterministic recovery criteria (all must be true simultaneously):
+  //   1. Account is not paused (isPaused = false)
+  //   2. Success rate > 80% over 2h window (minimum 5 samples)
+  //   3. Latency within 1.5× of 7-day baseline
+  //   4. No enforcement events for 2h
+  resolvedAt        DateTime? @map("resolved_at")          // When account recovered from this event
+  recoveryDurationMs Int?     @map("recovery_duration_ms") // How long recovery took
+
+  // DM context (which specific DM triggered the event, if applicable)
+  dmQueueId         String?   @map("dm_queue_id")
+  recipientUsername String?   @map("recipient_username")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([igAccountId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([sendAttemptId])
+  @@map("enforcement_events")
 }
