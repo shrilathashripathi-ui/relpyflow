@@ -11,6 +11,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9fafb;
   color: #1f2937;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body,
+html.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
 }
 
 /* Ensure inputs have proper text color */
@@ -18,8 +25,16 @@ input, textarea, select {
   color: #1f2937;
 }
 
+html.dark input, html.dark textarea, html.dark select {
+  color: #f3f4f6;
+}
+
 input::placeholder, textarea::placeholder {
   color: #9ca3af;
+}
+
+html.dark input::placeholder, html.dark textarea::placeholder {
+  color: #6b7280;
 }
 
 code {
@@ -37,6 +52,10 @@ code {
   border-radius: 3px;
 }
 
+html.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #c4b5fd;
   border-radius: 3px;
@@ -44,6 +63,14 @@ code {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #a78bfa;
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #6d28d9;
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed;
 }
 
 @layer components {

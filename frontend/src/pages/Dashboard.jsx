@@ -84,16 +84,16 @@ const Dashboard = () => {
 
   const getStatusBadge = (status) => {
     const styles = {
-      sent: { bg: 'bg-blue-100', text: 'text-blue-700', label: '✓ Sent' },
-      replied: { bg: 'bg-green-100', text: 'text-green-700', label: '✓ Replied' },
-      waiting: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '⏳ Waiting' }
+      sent: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', label: '\u2713 Sent' },
+      replied: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', label: '\u2713 Replied' },
+      waiting: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-300', label: '\u23f3 Waiting' }
     };
     return styles[status] || styles.sent;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
         <Sidebar />
         <div className="flex-1 ml-64 p-8">
           <div className="flex items-center justify-center h-64">
@@ -105,7 +105,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
       <Sidebar />
 
       <div className="flex-1 ml-64">
@@ -113,10 +113,10 @@ const Dashboard = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Welcome back, {user?.name || 'there'} 👋
               </h1>
-              <p className="text-gray-600 mt-1">Here's how your automations are performing</p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Here's how your automations are performing</p>
             </div>
             <button
               onClick={() => navigate('/create-automation')}
@@ -159,87 +159,87 @@ const Dashboard = () => {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mb-1">DMs Sent</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.messagesSent}</p>
-              <p className="text-sm text-green-600 mt-1">↑ 12% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">DMs Sent</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.messagesSent}</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 12% from last week</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mb-1">Replies</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.replies}</p>
-              <p className="text-sm text-green-600 mt-1">↑ 8% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Replies</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.replies}</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 8% from last week</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mb-1">Leads Captured</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.leads}</p>
-              <p className="text-sm text-green-600 mt-1">↑ 23% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Leads Captured</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.leads}</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 23% from last week</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mb-1">Reply Rate</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.replyRate}%</p>
-              <p className="text-sm text-green-600 mt-1">↑ 5% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Reply Rate</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.replyRate}%</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 5% from last week</p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-8">
             {/* Recent DMs Table */}
-            <div className="col-span-2 bg-white rounded-2xl shadow-sm">
-              <div className="p-6 border-b border-gray-100">
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm transition-colors">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">Recent DMs</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent DMs</h2>
                   <button
                     onClick={() => navigate('/leads')}
-                    className="text-purple-600 text-sm font-medium hover:underline"
+                    className="text-purple-600 dark:text-purple-400 text-sm font-medium hover:underline"
                   >
-                    View all →
+                    View all &rarr;
                   </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500">USER</th>
-                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500">KEYWORD</th>
-                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500">STATUS</th>
-                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500">TIME</th>
+                    <tr className="border-b border-gray-100 dark:border-gray-700">
+                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">USER</th>
+                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">KEYWORD</th>
+                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">STATUS</th>
+                      <th className="text-left py-3 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">TIME</th>
                     </tr>
                   </thead>
                   <tbody>
                     {recentDMs.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="py-12 text-center text-gray-500">
+                        <td colSpan="4" className="py-12 text-center text-gray-500 dark:text-gray-400">
                           No DMs sent yet. Create an automation to get started!
                         </td>
                       </tr>
@@ -247,17 +247,17 @@ const Dashboard = () => {
                       recentDMs.map((dm) => {
                         const status = getStatusBadge(dm.status);
                         return (
-                          <tr key={dm.id} className="border-b border-gray-50 hover:bg-gray-50">
+                          <tr key={dm.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-sm font-medium">
                                   {dm.username.charAt(1).toUpperCase()}
                                 </div>
-                                <span className="font-medium text-gray-900">{dm.username}</span>
+                                <span className="font-medium text-gray-900 dark:text-white">{dm.username}</span>
                               </div>
                             </td>
                             <td className="py-4 px-6">
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-sm font-medium">
+                              <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-sm font-medium">
                                 {dm.keyword}
                               </span>
                             </td>
@@ -266,7 +266,7 @@ const Dashboard = () => {
                                 {status.label}
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-gray-500 text-sm">{dm.time}</td>
+                            <td className="py-4 px-6 text-gray-500 dark:text-gray-400 text-sm">{dm.time}</td>
                           </tr>
                         );
                       })
@@ -277,22 +277,22 @@ const Dashboard = () => {
             </div>
 
             {/* Active Automations */}
-            <div className="bg-white rounded-2xl shadow-sm">
-              <div className="p-6 border-b border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm transition-colors">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">Active Automations</h2>
-                  <span className="text-sm text-gray-500">{automations.filter(a => a.isActive).length} running</span>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Active Automations</h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{automations.filter(a => a.isActive).length} running</span>
                 </div>
               </div>
               <div className="p-4">
                 {automations.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
-                    <p className="text-gray-600 mb-4">No automations yet</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">No automations yet</p>
                     <button
                       onClick={() => navigate('/create-automation')}
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
@@ -305,18 +305,18 @@ const Dashboard = () => {
                     {automations.slice(0, 5).map((automation) => (
                       <div
                         key={automation.id}
-                        className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                        className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                         onClick={() => navigate(`/automations/${automation.id}/leads`)}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">{automation.name}</h4>
-                          <span className={`w-2 h-2 rounded-full ${automation.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                          <h4 className="font-medium text-gray-900 dark:text-white">{automation.name}</h4>
+                          <span className={`w-2 h-2 rounded-full ${automation.isActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">
+                          <span className="text-gray-500 dark:text-gray-400">
                             {automation.keywords?.length || 0} keywords
                           </span>
-                          <span className="text-purple-600 font-medium">
+                          <span className="text-purple-600 dark:text-purple-400 font-medium">
                             {automation.dmsSentCount || 0} DMs
                           </span>
                         </div>
@@ -325,9 +325,9 @@ const Dashboard = () => {
                     {automations.length > 5 && (
                       <button
                         onClick={() => navigate('/automations')}
-                        className="w-full py-3 text-purple-600 text-sm font-medium hover:bg-purple-50 rounded-lg transition-colors"
+                        className="w-full py-3 text-purple-600 dark:text-purple-400 text-sm font-medium hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                       >
-                        View all {automations.length} automations →
+                        View all {automations.length} automations &rarr;
                       </button>
                     )}
                   </div>
