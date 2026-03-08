@@ -145,8 +145,8 @@ app.get('/health/status', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Database schema is synced automatically via `prisma db push` in the start script (package.json)
-// No manual ALTER TABLE statements needed — Prisma handles all schema migrations.
+// Database schema is synced via `prisma migrate deploy` in the start script (package.json)
+// All schema changes must go through versioned migrations in prisma/migrations/
 
 app.listen(PORT, () => {
   console.log(`✅ ReplyFlow server running on port ${PORT}`);
