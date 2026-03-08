@@ -145,16 +145,8 @@ app.get('/health/status', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Run pending database migrations (raw SQL - works even when prisma db push fails)
-const { pool } = require('./config/database');
-(async () => {
-  try {
-    await pool.query(`ALTER TABLE instagram_accounts ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;`);
-    console.log('✅ Database schema verified');
-  } catch (err) {
-    console.error('⚠️ Schema migration warning:', err.message);
-  }
-})();
+// Database schema is synced automatically via `prisma db push` in the start script (package.json)
+// No manual ALTER TABLE statements needed — Prisma handles all schema migrations.
 
 app.listen(PORT, () => {
   console.log(`✅ ReplyFlow server running on port ${PORT}`);
