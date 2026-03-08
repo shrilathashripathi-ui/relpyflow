@@ -84,21 +84,21 @@ const ConnectInstagram = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
             Connect Instagram Account
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Only a few steps away to go Viral!
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 max-w-md mx-auto bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+          <div className="mb-6 max-w-md mx-auto bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl flex items-center gap-2">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -107,7 +107,7 @@ const ConnectInstagram = () => {
         )}
 
         {success && (
-          <div className="mb-6 max-w-md mx-auto bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+          <div className="mb-6 max-w-md mx-auto bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-xl flex items-center gap-2">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -117,16 +117,16 @@ const ConnectInstagram = () => {
 
         {/* Connection Method */}
         <div className="max-w-md mx-auto mb-8">
-          <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-8 border border-gray-100 dark:border-gray-700">
             {/* Meta Verified Badge */}
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L13.09 8.26L18 6L15.74 10.91L22 12L15.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L8.26 13.09L2 12L8.26 10.91L6 6L10.91 8.26L12 2Z"/>
                 </svg>
-                <span className="font-semibold text-blue-800 text-sm">We're a Meta-verified business</span>
+                <span className="font-semibold text-blue-800 dark:text-blue-300 text-sm">We're a Meta-verified business</span>
               </div>
-              <p className="text-blue-600 text-xs leading-relaxed">
+              <p className="text-blue-600 dark:text-blue-400 text-xs leading-relaxed">
                 We only use official Instagram APIs and processes. Your Instagram account is secure, and you stay in full control.
               </p>
             </div>
@@ -137,19 +137,19 @@ const ConnectInstagram = () => {
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm text-gray-700">Official Instagram OAuth login</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Official Instagram OAuth login</span>
               </div>
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm text-gray-700">Safe and Secure</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Safe and Secure</span>
               </div>
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm text-gray-700">Business & Creator accounts supported</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Business & Creator accounts supported</span>
               </div>
             </div>
 
@@ -179,7 +179,7 @@ const ConnectInstagram = () => {
               )}
             </button>
 
-            <p className="mt-4 text-xs text-gray-400 text-center">
+            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500 text-center">
               You'll be redirected to Instagram to authorize Replyflows
             </p>
           </div>
@@ -189,18 +189,18 @@ const ConnectInstagram = () => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-gray-500">Loading accounts...</p>
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Loading accounts...</p>
           </div>
         ) : accounts.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               Connected Accounts
             </h3>
             <div className="space-y-3">
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -213,10 +213,10 @@ const ConnectInstagram = () => {
                       )}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-gray-800 dark:text-white">
                         @{account.username}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         Connected {new Date(account.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -224,14 +224,14 @@ const ConnectInstagram = () => {
                   <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                       account.status === 'active'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                     }`}>
                       {account.status === 'active' ? 'Active' : account.status}
                     </span>
                     <button
                       onClick={() => handleDeleteAccount(account.id, account.username)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                       title="Disconnect account"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,16 +244,16 @@ const ConnectInstagram = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
               No accounts connected yet
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 dark:text-gray-400">
               Click "Login with Instagram" above to connect your account
             </p>
           </div>

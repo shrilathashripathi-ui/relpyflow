@@ -208,21 +208,21 @@ const Leads = () => {
     const step = conversationStep || status;
     const styles = {
       // Conversation flow steps
-      opening: 'bg-blue-100 text-blue-700',
-      waiting_button: 'bg-yellow-100 text-yellow-700',
-      waiting_follow: 'bg-orange-100 text-orange-700',
-      waiting_email: 'bg-purple-100 text-purple-700',
-      link_sent: 'bg-green-100 text-green-700',
-      completed: 'bg-green-100 text-green-700',
+      opening: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      waiting_button: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+      waiting_follow: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+      waiting_email: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+      link_sent: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
       // Legacy statuses
-      pending: 'bg-yellow-100 text-yellow-700',
-      processing: 'bg-blue-100 text-blue-700',
-      sent: 'bg-green-100 text-green-700',
-      dm_sent: 'bg-green-100 text-green-700',
-      failed: 'bg-red-100 text-red-700',
-      detected: 'bg-purple-100 text-purple-700'
+      pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+      processing: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      sent: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      dm_sent: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      detected: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
     };
-    return styles[step] || 'bg-gray-100 text-gray-700';
+    return styles[step] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
   };
 
   const getStatusLabel = (status, conversationStep) => {
@@ -277,7 +277,7 @@ const Leads = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
         <Sidebar />
         <div className="flex-1 ml-64 p-8">
           <div className="flex items-center justify-center h-64">
@@ -289,7 +289,7 @@ const Leads = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar />
 
       <div className="flex-1 ml-64">
@@ -297,13 +297,13 @@ const Leads = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Leads & DM Queue</h1>
-              <p className="text-gray-600">Track triggered comments and pending DMs</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Leads & DM Queue</h1>
+              <p className="text-gray-600 dark:text-gray-400">Track triggered comments and pending DMs</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={fetchData}
-                className="px-4 py-2 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all flex items-center gap-2"
+                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -312,7 +312,7 @@ const Leads = () => {
               </button>
               <button
                 onClick={() => setShowExportModal(true)}
-                className="px-4 py-2 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all flex items-center gap-2"
+                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -324,12 +324,12 @@ const Leads = () => {
 
           {/* Stats */}
           <div className="grid grid-cols-5 gap-4 mb-8">
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-1">Total Leads</p>
-              <p className="text-3xl font-bold text-gray-900">{leads.length}</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Leads</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{leads.length}</p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-1">In Progress</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">In Progress</p>
               <p className="text-3xl font-bold text-orange-600">
                 {leads.filter((l) =>
                   l.conversationStep === 'waiting_button' ||
@@ -338,21 +338,21 @@ const Leads = () => {
                 ).length}
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-1">Pending</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Pending</p>
               <p className="text-3xl font-bold text-yellow-600">
                 {leads.filter((l) => l.status === 'pending' && !l.conversationStep?.startsWith('waiting')).length}
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-1">Completed</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Completed</p>
               <p className="text-3xl font-bold text-green-600">
                 {leads.filter((l) => l.linkSent || l.conversationStep === 'completed' || l.conversationStep === 'link_sent').length}
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-1">Today</p>
-              <p className="text-3xl font-bold text-purple-600">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Today</p>
+              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
                 {leads.filter((l) => {
                   const today = new Date();
                   const capturedDate = new Date(l.capturedAt);
@@ -369,7 +369,7 @@ const Leads = () => {
               className={`px-6 py-3 rounded-xl font-medium transition-all ${
                 activeTab === 'pending'
                   ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               }`}
             >
               Pending DMs ({pendingDMs.length})
@@ -379,7 +379,7 @@ const Leads = () => {
               className={`px-6 py-3 rounded-xl font-medium transition-all ${
                 activeTab === 'all'
                   ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               }`}
             >
               All Leads ({leads.length})
@@ -390,33 +390,33 @@ const Leads = () => {
           {activeTab === 'pending' && (
             <div className="space-y-4">
               {pendingDMs.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center shadow-sm">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-1">All caught up!</h3>
-                  <p className="text-gray-500">No pending DMs in the queue</p>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">All caught up!</h3>
+                  <p className="text-gray-500 dark:text-gray-400">No pending DMs in the queue</p>
                 </div>
               ) : (
                 pendingDMs.map((dm) => (
-                  <div key={dm.id} className="bg-white rounded-2xl p-6 shadow-sm">
+                  <div key={dm.id} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
                           {(dm.username || '?').charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">@{dm.username}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-medium mr-2">
+                          <p className="font-semibold text-gray-900 dark:text-white">@{dm.username}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-xs font-medium mr-2">
                               {dm.keyword}
                             </span>
                             {dm.source}
                           </p>
                           {dm.comment && (
-                            <p className="text-sm text-gray-600 mt-2 italic">"{dm.comment}"</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">"{dm.comment}"</p>
                           )}
                         </div>
                       </div>
@@ -462,7 +462,7 @@ const Leads = () => {
           {activeTab === 'all' && (
             <>
               {/* Filters */}
-              <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm mb-6">
                 <div className="flex items-center gap-4">
                   <div className="flex-1 relative">
                     <svg
@@ -478,13 +478,13 @@ const Leads = () => {
                       placeholder="Search by username or comment..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                     />
                   </div>
                   <select
                     value={filterSource}
                     onChange={(e) => setFilterSource(e.target.value)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-white"
                   >
                     <option value="all">All Automations</option>
                     {uniqueSources.map((source) => (
@@ -496,7 +496,7 @@ const Leads = () => {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-white"
                   >
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
@@ -507,10 +507,10 @@ const Leads = () => {
               </div>
 
               {/* Leads Table */}
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
+                    <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                       <th className="py-4 px-6 text-left">
                         <input
                           type="checkbox"
@@ -519,30 +519,30 @@ const Leads = () => {
                           className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                         />
                       </th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">USER</th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">COMMENT</th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">KEYWORD</th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">AUTOMATION</th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">TIME</th>
-                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500">STATUS</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">USER</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">COMMENT</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">KEYWORD</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">AUTOMATION</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">TIME</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">STATUS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLeads.length === 0 ? (
                       <tr>
                         <td colSpan="7" className="py-16 text-center">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-800 mb-1">No leads yet</h3>
-                          <p className="text-gray-500">Triggers will appear here when keywords are detected.</p>
+                          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">No leads yet</h3>
+                          <p className="text-gray-500 dark:text-gray-400">Triggers will appear here when keywords are detected.</p>
                         </td>
                       </tr>
                     ) : (
                       filteredLeads.map((lead) => (
-                        <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <tr key={lead.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="py-4 px-6">
                             <input
                               type="checkbox"
@@ -557,22 +557,22 @@ const Leads = () => {
                                 {(lead.username || '?').charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900">@{lead.username}</p>
+                                <p className="font-medium text-gray-900 dark:text-white">@{lead.username}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-6 text-gray-600 max-w-xs truncate">
+                          <td className="py-4 px-6 text-gray-600 dark:text-gray-400 max-w-xs truncate">
                             {lead.comment || '-'}
                           </td>
                           <td className="py-4 px-6">
-                            <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-medium">
+                            <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded text-sm font-medium">
                               {lead.keyword || '-'}
                             </span>
                           </td>
                           <td className="py-4 px-6">
-                            <span className="text-sm text-gray-600">{lead.source}</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">{lead.source}</span>
                           </td>
-                          <td className="py-4 px-6 text-gray-500 text-sm">
+                          <td className="py-4 px-6 text-gray-500 dark:text-gray-400 text-sm">
                             {formatTimeAgo(lead.capturedAt)}
                           </td>
                           <td className="py-4 px-6">
@@ -588,8 +588,8 @@ const Leads = () => {
 
                 {/* Pagination */}
                 {filteredLeads.length > 0 && (
-                  <div className="flex items-center justify-between p-4 border-t border-gray-100">
-                    <p className="text-sm text-gray-500">
+                  <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       Showing {filteredLeads.length} of {leads.length} leads
                     </p>
                   </div>
@@ -603,9 +603,9 @@ const Leads = () => {
       {/* Export Modal */}
       {showExportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Export Leads</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Export Leads</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               {selectedLeads.length > 0
                 ? `Export ${selectedLeads.length} selected leads to CSV`
                 : `Export all ${filteredLeads.length} leads to CSV`}
@@ -613,7 +613,7 @@ const Leads = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowExportModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 Cancel
               </button>

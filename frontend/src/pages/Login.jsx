@@ -62,19 +62,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             Replyflows
           </h2>
-          <p className="mt-2 text-gray-500">
+          <p className="mt-2 text-gray-500 dark:text-gray-400">
             Instagram DM Automation Platform
           </p>
         </div>
 
         {/* Meta Verified Badge */}
-        <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-6 text-center border border-gray-200">
+        <div className="bg-gradient-to-b from-gray-100 to-white dark:from-gray-800 dark:to-gray-800 rounded-2xl p-6 text-center border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-center gap-2 mb-2">
             {/* Meta Logo - Infinity Symbol */}
             <svg className="w-8 h-8" viewBox="0 0 100 100" fill="none">
@@ -90,19 +90,19 @@ const Login = () => {
                 fill="url(#metaGradient)"
               />
             </svg>
-            <h3 className="text-lg font-semibold text-gray-800">We're a Meta-verified business</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">We're a Meta-verified business</h3>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             We only use official Instagram APIs and processes.<br />
             Your Instagram account is secure, and you stay in full control.
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Name
                 </label>
                 <input
@@ -111,14 +111,14 @@ const Login = () => {
                   value={formData.name}
                   onChange={handleChange}
                   required={!isLogin}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                   placeholder="Your name"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email
               </label>
               <input
@@ -127,13 +127,13 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -142,13 +142,13 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -158,11 +158,11 @@ const Login = () => {
 
             {/* Terms and Privacy */}
             {!isLogin && (
-              <p className="text-center text-sm text-gray-500">
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                 By signing up you agree to the{' '}
-                <a href="#" className="text-purple-600 hover:underline">Terms</a>
+                <a href="#" className="text-purple-600 dark:text-purple-400 hover:underline">Terms</a>
                 {' '}and{' '}
-                <a href="#" className="text-purple-600 hover:underline">Privacy Policy</a>
+                <a href="#" className="text-purple-600 dark:text-purple-400 hover:underline">Privacy Policy</a>
               </p>
             )}
 
@@ -176,18 +176,18 @@ const Login = () => {
           </form>
         </div>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           {isLogin ? (
             <>
               Don't have an account?{' '}
-              <Link to="/register" onClick={() => { setIsLogin(false); setError(''); }} className="text-purple-600 hover:underline font-medium">
+              <Link to="/register" onClick={() => { setIsLogin(false); setError(''); }} className="text-purple-600 dark:text-purple-400 hover:underline font-medium">
                 Sign up
               </Link>
             </>
           ) : (
             <>
               Already have an account?{' '}
-              <Link to="/login" onClick={() => { setIsLogin(true); setError(''); }} className="text-purple-600 hover:underline font-medium">
+              <Link to="/login" onClick={() => { setIsLogin(true); setError(''); }} className="text-purple-600 dark:text-purple-400 hover:underline font-medium">
                 Log in
               </Link>
             </>

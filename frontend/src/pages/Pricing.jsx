@@ -112,16 +112,16 @@ const Pricing = () => {
   const isCancelled = subscription?.status === 'cancelled';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
       <div className="container mx-auto px-4 py-12 max-w-5xl">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+          <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-xl text-gray-500">
+          <p className="text-xl text-gray-500 dark:text-gray-400">
             Start for free, upgrade when you need more
           </p>
         </div>
@@ -134,30 +134,30 @@ const Pricing = () => {
           <>
             {/* Current Plan Banner */}
             {subscription && (
-              <div className={`mb-8 p-4 rounded-xl ${isPro ? 'bg-purple-100' : isTrial ? 'bg-yellow-100' : isCancelled ? 'bg-orange-100' : 'bg-gray-100'}`}>
+              <div className={`mb-8 p-4 rounded-xl ${isPro ? 'bg-purple-100 dark:bg-purple-900/30' : isTrial ? 'bg-yellow-100 dark:bg-yellow-900/30' : isCancelled ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className={`font-semibold ${isPro ? 'text-purple-800' : isTrial ? 'text-yellow-800' : isCancelled ? 'text-orange-800' : 'text-gray-800'}`}>
+                    <span className={`font-semibold ${isPro ? 'text-purple-800 dark:text-purple-300' : isTrial ? 'text-yellow-800 dark:text-yellow-300' : isCancelled ? 'text-orange-800 dark:text-orange-300' : 'text-gray-800 dark:text-gray-200'}`}>
                       Current Plan: {subscription.plan === 'pro' ? 'Pro' : 'Free'}
                       {isTrial && ' (Trial)'}
                       {isCancelled && ' (Cancelled)'}
                     </span>
                     {subscription.daysRemaining !== null && (
-                      <span className="ml-2 text-sm text-gray-600">
+                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                         {isCancelled ? '• Access ends in' : '•'} {subscription.daysRemaining} days remaining
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-4">
                     {subscription.usage && (
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         DMs used: {subscription.usage.dmsSent} / {subscription.usage.dmsLimit === -1 ? '\u221E' : subscription.usage.dmsLimit}
                       </div>
                     )}
                     {isPro && !isTrial && (
                       <button
                         onClick={handleCancel}
-                        className="text-sm text-red-500 hover:text-red-700 font-medium"
+                        className="text-sm text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
                       >
                         Cancel Plan
                       </button>
@@ -170,12 +170,12 @@ const Pricing = () => {
             {/* Pricing Cards */}
             <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
               {/* Free Plan */}
-              <div className={`bg-white rounded-2xl shadow-sm p-8 border-2 ${!isPro && !isTrial ? 'border-purple-500' : 'border-transparent'}`}>
+              <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-8 border-2 ${!isPro && !isTrial ? 'border-purple-500' : 'border-transparent'}`}>
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-gray-800">Free</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white">Free</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-800">{'\u20B9'}0</span>
-                    <span className="text-gray-500">/month</span>
+                    <span className="text-4xl font-bold text-gray-800 dark:text-white">{'\u20B9'}0</span>
+                    <span className="text-gray-500 dark:text-gray-400">/month</span>
                   </div>
                 </div>
 
@@ -184,57 +184,57 @@ const Pricing = () => {
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">1,000 DMs per month</span>
+                    <span className="text-gray-700 dark:text-gray-300">1,000 DMs per month</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">3 Automations</span>
+                    <span className="text-gray-700 dark:text-gray-300">3 Automations</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">1 Instagram Account</span>
+                    <span className="text-gray-700 dark:text-gray-300">1 Instagram Account</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Comment Replies</span>
+                    <span className="text-gray-700 dark:text-gray-300">Comment Replies</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span className="text-gray-400">Ask for Follow</span>
+                    <span className="text-gray-400 dark:text-gray-500">Ask for Follow</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span className="text-gray-400">Re-trigger</span>
+                    <span className="text-gray-400 dark:text-gray-500">Re-trigger</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span className="text-gray-400">Lead Collection</span>
+                    <span className="text-gray-400 dark:text-gray-500">Lead Collection</span>
                   </li>
                 </ul>
 
                 {!isPro && !isTrial ? (
                   <button
                     disabled
-                    className="w-full py-3 bg-gray-200 text-gray-600 rounded-xl font-semibold"
+                    className="w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-xl font-semibold"
                   >
                     Current Plan
                   </button>
                 ) : (
                   <button
                     disabled
-                    className="w-full py-3 bg-gray-100 text-gray-400 rounded-xl font-semibold"
+                    className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-xl font-semibold"
                   >
                     Downgrade
                   </button>
@@ -242,7 +242,7 @@ const Pricing = () => {
               </div>
 
               {/* Pro Plan */}
-              <div className={`bg-white rounded-2xl shadow-lg p-8 border-2 ${isPro || isTrial ? 'border-purple-500' : 'border-transparent'} relative`}>
+              <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border-2 ${isPro || isTrial ? 'border-purple-500' : 'border-transparent'} relative`}>
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
                     MOST POPULAR
@@ -250,10 +250,10 @@ const Pricing = () => {
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-gray-800">Pro</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white">Pro</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-800">{'\u20B9'}499</span>
-                    <span className="text-gray-500">/month</span>
+                    <span className="text-4xl font-bold text-gray-800 dark:text-white">{'\u20B9'}499</span>
+                    <span className="text-gray-500 dark:text-gray-400">/month</span>
                   </div>
                 </div>
 
@@ -262,68 +262,68 @@ const Pricing = () => {
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700 font-semibold">Unlimited DMs</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-semibold">Unlimited DMs</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700 font-semibold">Unlimited Automations</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-semibold">Unlimited Automations</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">5 Instagram Accounts</span>
+                    <span className="text-gray-700 dark:text-gray-300">5 Instagram Accounts</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Comment Replies</span>
+                    <span className="text-gray-700 dark:text-gray-300">Comment Replies</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Ask for Follow</span>
+                    <span className="text-gray-700 dark:text-gray-300">Ask for Follow</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Re-trigger Old Posts</span>
+                    <span className="text-gray-700 dark:text-gray-300">Re-trigger Old Posts</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Lead Collection</span>
+                    <span className="text-gray-700 dark:text-gray-300">Lead Collection</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">AI-Powered Replies</span>
+                    <span className="text-gray-700 dark:text-gray-300">AI-Powered Replies</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Webhooks Integration</span>
+                    <span className="text-gray-700 dark:text-gray-300">Webhooks Integration</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-gray-700">Priority Support</span>
+                    <span className="text-gray-700 dark:text-gray-300">Priority Support</span>
                   </li>
                 </ul>
 
                 {isPro && !isTrial ? (
                   <button
                     disabled
-                    className="w-full py-3 bg-purple-100 text-purple-700 rounded-xl font-semibold"
+                    className="w-full py-3 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-xl font-semibold"
                   >
                     Current Plan
                   </button>
@@ -347,11 +347,11 @@ const Pricing = () => {
                     <button
                       onClick={handleStartTrial}
                       disabled={upgrading}
-                      className="w-full py-2 text-purple-600 font-medium hover:underline"
+                      className="w-full py-2 text-purple-600 dark:text-purple-400 font-medium hover:underline"
                     >
                       Start 14-day free trial
                     </button>
-                    <p className="text-center text-xs text-gray-400">
+                    <p className="text-center text-xs text-gray-400 dark:text-gray-500">
                       UPI, Cards, Net Banking accepted
                     </p>
                   </div>
@@ -361,49 +361,49 @@ const Pricing = () => {
 
             {/* FAQ Section */}
             <div className="mt-16 max-w-3xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-800 text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white text-center mb-8">
                 Frequently Asked Questions
               </h2>
 
               <div className="space-y-4">
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">What happens when I hit my DM limit?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">What happens when I hit my DM limit?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     On the free plan, once you've sent 1,000 DMs in a month, your automations will pause until the next month starts. Upgrade to Pro for unlimited DMs.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">Can I cancel anytime?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Can I cancel anytime?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     Yes! You can cancel your subscription at any time. You'll keep Pro access until the end of your billing period.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">What payment methods are accepted?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">What payment methods are accepted?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     We accept UPI, all major credit/debit cards, and net banking through Razorpay's secure payment gateway.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">What is "Ask for Follow"?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">What is "Ask for Follow"?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     This feature checks if the commenter follows your account. If they don't, you can send a custom message asking them to follow first before receiving your main content.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">What is "Re-trigger"?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">What is "Re-trigger"?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     Re-trigger lets you run your automation on old posts/reels to capture comments you may have missed. Great for turning viral content into leads.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                  <h3 className="font-semibold text-gray-800 mb-2">How does Lead Collection work?</h3>
-                  <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">How does Lead Collection work?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">
                     Lead Collection allows you to gather email addresses, phone numbers, or custom information from users through a conversational DM flow. All leads are exportable as CSV.
                   </p>
                 </div>

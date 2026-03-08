@@ -87,7 +87,7 @@ const Sequences = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
         <Sidebar />
         <div className="flex-1 ml-64 p-8">
           <div className="flex items-center justify-center h-64">
@@ -99,15 +99,15 @@ const Sequences = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar />
 
       <div className="flex-1 ml-64 p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Sequences</h1>
-            <p className="text-gray-500">Automate time-delayed message series for nurturing contacts</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Sequences</h1>
+            <p className="text-gray-500 dark:text-gray-400">Automate time-delayed message series for nurturing contacts</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -122,7 +122,7 @@ const Sequences = () => {
 
         {/* Success/Error Messages */}
         {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+          <div className="mb-6 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-xl flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -131,7 +131,7 @@ const Sequences = () => {
         )}
 
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+          <div className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl">
             {error}
           </div>
         )}
@@ -156,14 +156,14 @@ const Sequences = () => {
 
         {/* Sequences List */}
         {sequences.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-12 text-center">
+            <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No sequences yet</h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">No sequences yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
               Create your first sequence to start sending time-delayed messages to your contacts automatically.
             </p>
             <button
@@ -176,7 +176,7 @@ const Sequences = () => {
         ) : (
           <div className="grid gap-4">
             {sequences.map((sequence) => (
-              <div key={sequence.id} className="bg-white rounded-2xl shadow-sm p-6">
+              <div key={sequence.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center">
@@ -185,14 +185,14 @@ const Sequences = () => {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-800">{sequence.name}</h3>
-                      <p className="text-sm text-gray-500">{sequence.description || 'No description'}</p>
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{sequence.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{sequence.description || 'No description'}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6">
                     {/* Stats */}
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -210,8 +210,8 @@ const Sequences = () => {
                     {/* Status Toggle */}
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                       sequence.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                     }`}>
                       {sequence.isActive ? '● Active' : '○ Inactive'}
                     </span>
@@ -222,15 +222,15 @@ const Sequences = () => {
                         onClick={() => handleToggleSequence(sequence.id)}
                         className={`px-3 py-1.5 text-sm font-medium rounded-lg ${
                           sequence.isActive
-                            ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
                         }`}
                       >
                         {sequence.isActive ? 'Pause' : 'Activate'}
                       </button>
                       <button
                         onClick={() => navigate(`/sequences/${sequence.id}/edit`)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg"
                         title="Edit sequence"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +239,7 @@ const Sequences = () => {
                       </button>
                       <button
                         onClick={() => handleDeleteSequence(sequence.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                         title="Delete sequence"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,10 +258,10 @@ const Sequences = () => {
       {/* Create Sequence Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">Create New Sequence</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Create New Sequence</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -270,22 +270,22 @@ const Sequences = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sequence Name *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sequence Name *</label>
                 <input
                   type="text"
                   value={newSequence.name}
                   onChange={(e) => setNewSequence(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Welcome Series, Lead Nurture"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description (optional)</label>
                 <textarea
                   value={newSequence.description}
                   onChange={(e) => setNewSequence(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="What is this sequence for?"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                   rows={3}
                 />
               </div>
@@ -294,7 +294,7 @@ const Sequences = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
