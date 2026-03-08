@@ -30,8 +30,14 @@ const {
   webhookLimiter,
 } = require('./middleware/rateLimit');
 
-// Import services (workers run as separate DO component — see src/workers/workerEntry.js)
+// Import services
 const uptimeMonitor = require('./services/uptimeMonitor');
+
+// Workers — run in-process (single DigitalOcean web service)
+const commentPoller = require('./services/instagram/commentPoller');
+const dmQueueWorker = require('./services/dmQueueWorker');
+const dmConversationHandler = require('./services/dmConversationHandler');
+const healthSnapshotWorker = require('./services/healthSnapshotWorker');
 
 const app = express();
 
@@ -140,34 +146,57 @@ app.get('/health/status', (req, res) => {
   });
 });
 
-// Worker status: workers run in a separate DO component (src/workers/workerEntry.js)
-// No worker control endpoints needed in the web server.
-
 const PORT = process.env.PORT || 5000;
 
 // Database schema is synced via `prisma migrate deploy` in the start script (package.json)
 // All schema changes must go through versioned migrations in prisma/migrations/
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`✅ ReplyFlow server running on port ${PORT}`);
 
-  // Initialize services
+  // Initialize uptime monitor
   console.log('📊 Starting uptime monitor...');
   uptimeMonitor.start(60000); // Check every minute
 
+  // Start workers in-process (comment poller, DM queue, conversation handler)
+  console.log('🤖 Starting workers...');
+  try {
+    commentPoller.start();
+    console.log('  ✅ Comment poller started');
 
-  console.log('💡 Workers run as separate DigitalOcean component (src/workers/workerEntry.js)');
+    dmQueueWorker.start();
+    console.log('  ✅ DM queue worker started');
+
+    await dmConversationHandler.startConversationHandler();
+    console.log('  ✅ Conversation handler started');
+
+    healthSnapshotWorker.start();
+    console.log('  ✅ Health snapshot worker started');
+
+    console.log('🚀 All workers running. Automation is live.');
+  } catch (err) {
+    console.error('❌ Worker startup failed:', err.message);
+    // Don't crash the server — API still works, workers can be restarted
+  }
 });
 
-// Graceful shutdown (web server only — workers have their own shutdown in workerEntry.js)
+// Graceful shutdown — stop both server and workers
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
   uptimeMonitor.stop();
+  commentPoller.stop();
+  dmQueueWorker.stop();
+  dmConversationHandler.stopConversationHandler();
+  healthSnapshotWorker.stop();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
   uptimeMonitor.stop();
+  commentPoller.stop();
+  dmQueueWorker.stop();
+  dmConversationHandler.stopConversationHandler();
+  healthSnapshotWorker.stop();
   process.exit(0);
 });
