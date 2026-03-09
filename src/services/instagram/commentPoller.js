@@ -1,5 +1,6 @@
 const axios = require('axios');
 const KeywordMatcher = require('./keywordMatcher');
+const officialApiService = require('./officialApiService');
 const { decryptAccountTokens } = require('../../utils/encryption');
 
 const prisma = require('../../config/prisma');
@@ -242,8 +243,45 @@ class CommentPoller {
   async handlePollingError(account, error) {
     const errorMessage = error.message || '';
     const statusCode = error.response?.status;
+    const graphApiError = error.response?.data?.error; // Official Graph API error structure
 
-    // ── HARD STOPS — pause immediately, don't just skip ──
+    // ── Official Graph API error handling ──
+    if (account.useOfficialApi && graphApiError) {
+      const code = graphApiError.code;
+      const subcode = graphApiError.error_subcode;
+
+      // Token expired (code 190) — needs re-auth
+      if (code === 190) {
+        console.log(`      🚫 [Official API] Token expired for @${account.username} — pause 1 hour (needs re-auth)`);
+        await prisma.instagramAccount.update({
+          where: { id: account.id },
+          data: { status: 'token_expired' }
+        });
+        await this.pauseAccountForPolling(account, 'official_api_token_expired', 1 * 60 * 60 * 1000);
+        return;
+      }
+
+      // Permissions error (code 10, 200, 803)
+      if ([10, 200, 803].includes(code)) {
+        console.log(`      🚫 [Official API] Permission denied for @${account.username}: ${graphApiError.message}`);
+        await this.pauseAccountForPolling(account, 'official_api_permission_denied', 6 * 60 * 60 * 1000);
+        return;
+      }
+
+      // Rate limited (code 4, 32, or subcode 2207051)
+      if (code === 4 || code === 32 || subcode === 2207051) {
+        console.log(`      ⏳ [Official API] Rate limited for @${account.username} — pause 1 hour`);
+        await this.pauseAccountForPolling(account, 'official_api_rate_limited', 1 * 60 * 60 * 1000);
+        return;
+      }
+
+      // Any other Graph API error — short pause, don't destroy status
+      console.log(`      ⚠️ [Official API] Error for @${account.username}: code=${code} — ${graphApiError.message?.substring(0, 100)}`);
+      await this.pauseAccountForPolling(account, `official_api_error_${code}`, 30 * 60 * 1000); // 30 min
+      return;
+    }
+
+    // ── Web scraping error handling (existing logic) ──
 
     // 403: Forbidden — session invalid or detected
     if (statusCode === 403) {
@@ -382,9 +420,36 @@ class CommentPoller {
   }
 
   /**
-   * Get user's recent media using web API
+   * Get user's recent media — routes to Official Graph API or web scraping
    */
   async getUserMedia(account) {
+    if (account.useOfficialApi && account.accessToken) {
+      return this.getUserMediaOfficial(account);
+    }
+    return this.getUserMediaScraping(account);
+  }
+
+  /**
+   * Get user's recent media using Official Instagram Graph API
+   */
+  async getUserMediaOfficial(account) {
+    const media = await officialApiService.getUserMedia(account.accessToken, account.igUserId);
+
+    // Normalize to the same shape the rest of the poller expects
+    return media.map(item => ({
+      id: item.id,
+      pk: item.id,
+      code: item.permalink ? item.permalink.split('/').filter(Boolean).pop() : null,
+      caption: { text: item.caption || '' },
+      image_versions2: item.media_url ? { candidates: [{ url: item.media_url }] } : null,
+      _isOfficialApi: true,
+    }));
+  }
+
+  /**
+   * Get user's recent media using web scraping API
+   */
+  async getUserMediaScraping(account) {
     const headers = this.getHeaders(account);
 
     const response = await axios.get(
@@ -398,7 +463,6 @@ class CommentPoller {
           count: 12
         },
         timeout: 30000,
-        // Log non-200 status codes
         validateStatus: (status) => {
           if (status !== 200) {
             console.log(`      ⚠️ Non-200 from feed endpoint: HTTP ${status} for @${account.username}`);
@@ -449,9 +513,39 @@ class CommentPoller {
   }
 
   /**
-   * Get comments for a specific media
+   * Get comments for a specific media — routes to Official API or web scraping
    */
   async getMediaComments(account, mediaId) {
+    if (account.useOfficialApi && account.accessToken) {
+      return this.getMediaCommentsOfficial(account, mediaId);
+    }
+    return this.getMediaCommentsScraping(account, mediaId);
+  }
+
+  /**
+   * Get comments using Official Instagram Graph API
+   */
+  async getMediaCommentsOfficial(account, mediaId) {
+    const comments = await officialApiService.getMediaComments(account.accessToken, mediaId);
+
+    // Normalize to the same shape the rest of the poller expects
+    return comments.map(c => ({
+      pk: c.id,
+      id: c.id,
+      text: c.text,
+      user: {
+        username: c.from?.username || c.username,
+        pk: c.from?.id || null,
+        id: c.from?.id || null,
+      },
+      _isOfficialApi: true,
+    }));
+  }
+
+  /**
+   * Get comments using web scraping API
+   */
+  async getMediaCommentsScraping(account, mediaId) {
     const headers = this.getHeaders(account);
 
     const response = await axios.get(
