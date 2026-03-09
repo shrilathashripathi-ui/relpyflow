@@ -1,7 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
 const PuppeteerDMService = require('./instagram/puppeteerDmService');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 class ConversationFlowService {
   /**

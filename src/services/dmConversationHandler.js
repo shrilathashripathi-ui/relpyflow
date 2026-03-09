@@ -7,10 +7,9 @@
  * When a user responds, it advances them to the next step in the flow.
  */
 
-const { PrismaClient } = require('@prisma/client');
 const instagramAPI = new (require('./instagram/instagramAPI'))();
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Polling interval in ms (check every 30 seconds)
 const POLL_INTERVAL = 30000;

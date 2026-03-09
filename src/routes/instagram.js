@@ -1,13 +1,12 @@
 const express = require('express');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const { encrypt, decryptAccountTokens } = require('../utils/encryption');
 const { oauthLimiter, syncLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Start OAuth - Using Facebook Login for Instagram Graph API
 router.get('/auth', oauthLimiter, protect, (req, res) => {

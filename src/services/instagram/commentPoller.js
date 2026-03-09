@@ -1,9 +1,8 @@
 const axios = require('axios');
-const { PrismaClient } = require('@prisma/client');
 const KeywordMatcher = require('./keywordMatcher');
 const { decryptAccountTokens } = require('../../utils/encryption');
 
-const prisma = new PrismaClient();
+const prisma = require('../../config/prisma');
 
 class CommentPoller {
   constructor() {

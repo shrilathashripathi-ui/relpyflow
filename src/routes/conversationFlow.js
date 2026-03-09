@@ -1,10 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const conversationFlowService = require('../services/conversationFlowService');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // ============================================
 // CONVERSATION FLOW CRUD

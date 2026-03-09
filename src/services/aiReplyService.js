@@ -5,9 +5,7 @@
 
 let OpenAI;
 try { OpenAI = require('openai'); } catch (e) { OpenAI = null; }
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 class AIReplyService {
   constructor() {

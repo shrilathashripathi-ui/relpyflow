@@ -1,12 +1,11 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const aiReplyService = require('../services/aiReplyService');
 const webhookService = require('../services/webhookService');
 const crypto = require('crypto');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Get recent DMs across all user's automations (for dashboard)
 router.get('/recent-dms', protect, async (req, res) => {

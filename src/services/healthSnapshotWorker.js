@@ -10,9 +10,7 @@
  * - Reply rate tracking over time
  * - Account health scoring for the user-facing dashboard
  */
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 class HealthSnapshotWorker {
   constructor() {

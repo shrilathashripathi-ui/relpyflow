@@ -10,13 +10,12 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const { PrismaClient } = require('@prisma/client');
 const KeywordMatcher = require('../services/instagram/keywordMatcher');
 const officialApi = require('../services/instagram/officialApiService');
 const { decryptAccountTokens } = require('../utils/encryption');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'replyflow_webhook_verify_2025';
 const APP_SECRET = process.env.INSTAGRAM_APP_SECRET;

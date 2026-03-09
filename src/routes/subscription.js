@@ -1,10 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const razorpayService = require('../services/razorpayService');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Pricing plans configuration
 const PLANS = {

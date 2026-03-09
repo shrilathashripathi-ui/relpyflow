@@ -23,10 +23,9 @@
  *     sendAttemptId: 'uuid-of-the-send-attempt',
  *   });
  */
-const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Decision model version — bump this whenever thresholds or logic change.
 // Without versioning, future calibration queries can't distinguish

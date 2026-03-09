@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const PuppeteerDMService = require('./instagram/puppeteerDmService');
 const officialApi = require('./instagram/officialApiService');
 const { decryptAccountTokens } = require('../utils/encryption');
@@ -6,7 +5,7 @@ const { pool } = require('../config/database');
 const enforcement = require('./enforcementLogger');
 const crypto = require('crypto');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Circuit breaker thresholds
 const CB_GENERIC_FAIL_LIMIT = 5;       // 5 consecutive generic failures → pause

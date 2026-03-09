@@ -3,8 +3,7 @@
  * Tracks system health, Instagram session status, and worker status
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 class UptimeMonitor {
   constructor() {

@@ -1,12 +1,11 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { PrismaClient } = require('@prisma/client');
 const { encrypt, decrypt } = require('../../utils/encryption');
 const { getLaunchOptions } = require('../../utils/browserHelper');
 
 puppeteer.use(StealthPlugin());
 
-const prisma = new PrismaClient();
+const prisma = require('../../config/prisma');
 
 class PuppeteerDMService {
   constructor(account) {

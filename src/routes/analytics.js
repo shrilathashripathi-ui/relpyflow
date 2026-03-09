@@ -3,12 +3,11 @@
  */
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { protect } = require('../middleware/auth');
 const uptimeMonitor = require('../services/uptimeMonitor');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Get overall dashboard metrics
 router.get('/dashboard', protect, async (req, res) => {
