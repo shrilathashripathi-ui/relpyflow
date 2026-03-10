@@ -154,26 +154,35 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`✅ ReplyFlow server running on port ${PORT}`);
 
-  // Fix OAuth accounts incorrectly paused by the old web-scraping poller
+  // Reset any OAuth accounts stuck in paused/expired state on startup
   try {
     const prisma = require('./config/prisma');
-    const fixed = await prisma.instagramAccount.updateMany({
+    const stuck = await prisma.instagramAccount.findMany({
       where: {
         useOfficialApi: true,
-        isPaused: true,
-        pauseReason: { startsWith: 'polling_' },
+        OR: [
+          { isPaused: true },
+          { status: { in: ['session_expired', 'token_expired', 'action_blocked'] } },
+        ],
       },
-      data: {
-        status: 'active',
-        isPaused: false,
-        pauseReason: null,
-        pausedUntil: null,
-        consecutiveFailures: 0,
-        lastFailureAt: null,
-      },
+      select: { id: true, username: true, status: true, isPaused: true, pauseReason: true },
     });
-    if (fixed.count > 0) {
-      console.log(`🔧 Fixed ${fixed.count} OAuth account(s) incorrectly paused by web-scraping poller`);
+    if (stuck.length > 0) {
+      for (const acct of stuck) {
+        console.log(`🔧 Resetting OAuth account @${acct.username}: status=${acct.status}, isPaused=${acct.isPaused}, reason=${acct.pauseReason}`);
+      }
+      const fixed = await prisma.instagramAccount.updateMany({
+        where: { id: { in: stuck.map(a => a.id) } },
+        data: {
+          status: 'active',
+          isPaused: false,
+          pauseReason: null,
+          pausedUntil: null,
+          consecutiveFailures: 0,
+          lastFailureAt: null,
+        },
+      });
+      console.log(`🔧 Fixed ${fixed.count} OAuth account(s) on startup`);
     }
   } catch (err) {
     console.error('⚠️ OAuth account fix failed:', err.message);
