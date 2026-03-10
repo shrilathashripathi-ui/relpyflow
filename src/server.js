@@ -154,6 +154,31 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`✅ ReplyFlow server running on port ${PORT}`);
 
+  // Fix OAuth accounts incorrectly paused by the old web-scraping poller
+  try {
+    const prisma = require('./config/prisma');
+    const fixed = await prisma.instagramAccount.updateMany({
+      where: {
+        useOfficialApi: true,
+        isPaused: true,
+        pauseReason: { startsWith: 'polling_' },
+      },
+      data: {
+        status: 'active',
+        isPaused: false,
+        pauseReason: null,
+        pausedUntil: null,
+        consecutiveFailures: 0,
+        lastFailureAt: null,
+      },
+    });
+    if (fixed.count > 0) {
+      console.log(`🔧 Fixed ${fixed.count} OAuth account(s) incorrectly paused by web-scraping poller`);
+    }
+  } catch (err) {
+    console.error('⚠️ OAuth account fix failed:', err.message);
+  }
+
   // Initialize uptime monitor
   console.log('📊 Starting uptime monitor...');
   uptimeMonitor.start(60000); // Check every minute
