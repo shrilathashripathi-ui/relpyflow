@@ -1382,7 +1382,8 @@ class DMQueueWorker {
           account.accessToken,
           account.igUserId,
           dm.recipientIgId,
-          dm.messageToSend
+          dm.messageToSend,
+          dm.commentId  // Pass commentId for Private Reply (comment-triggered DMs)
         );
         const sendLatencyMs = Date.now() - sendStart;
 

@@ -24,14 +24,22 @@ class OfficialInstagramApiService {
    * @param {string} recipientId - Instagram-scoped ID (IGSID) of the recipient
    * @param {string} messageText - Text message to send
    */
-  async sendDM(accessToken, igUserId, recipientId, messageText) {
-    console.log(`📤 [Official API] Sending DM from ${igUserId} to ${recipientId}`);
+  async sendDM(accessToken, igUserId, recipientId, messageText, commentId) {
+    // Use Private Reply when we have a commentId (for comment-triggered DMs).
+    // Instagram requires this — you cannot initiate a DM to a user who hasn't
+    // messaged you first. Private Reply lets you DM a commenter within 7 days.
+    const usePrivateReply = !!commentId;
+    const recipient = usePrivateReply
+      ? { comment_id: commentId }
+      : { id: recipientId };
+
+    console.log(`📤 [Official API] Sending DM from ${igUserId} via ${usePrivateReply ? 'Private Reply (comment ' + commentId + ')' : 'direct (user ' + recipientId + ')'}`);
 
     try {
       const response = await axios.post(
         `${GRAPH_API_BASE}/${igUserId}/messages`,
         {
-          recipient: { id: recipientId },
+          recipient,
           message: { text: messageText }
         },
         {
@@ -40,7 +48,7 @@ class OfficialInstagramApiService {
         }
       );
 
-      console.log('✅ [Official API] DM sent successfully');
+      console.log('✅ [Official API] DM sent successfully', usePrivateReply ? '(private reply)' : '(direct)');
       return { success: true, messageId: response.data?.message_id, data: response.data };
     } catch (error) {
       const errorData = error.response?.data?.error || {};
