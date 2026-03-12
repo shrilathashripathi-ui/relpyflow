@@ -631,51 +631,90 @@ class CommentPoller {
     });
 
     if (existingTrigger) {
-      // If trigger exists but DM was never sent, check if we need to requeue
-      if (!existingTrigger.dmSent) {
-        const pendingDM = await prisma.dmQueue.findFirst({
-          where: {
-            commentId: commentId,
-            status: { in: ['pending', 'processing'] }
-          }
-        });
+      // If DM was sent successfully, skip entirely
+      if (existingTrigger.dmSent) {
+        console.log(`         ⏭️ Already processed this comment (DM sent)`);
+        return;
+      }
 
-        if (!pendingDM) {
-          // DM failed and no pending retry — requeue it
-          console.log(`         🔄 Trigger exists but DM not sent — requeuing DM for @${commenterUsername}`);
+      // DM was never sent — check if we should requeue
+      const MAX_REQUEUE_ATTEMPTS = 3;
 
-          const mediaIdStr = media.pk?.toString() || media.id?.toString();
-          const monitoredReel = await prisma.monitoredReel.findUnique({
-            where: {
-              igAccountId_mediaId: {
-                igAccountId: account.id,
-                mediaId: mediaIdStr
-              }
-            }
-          });
+      // Check if there's already a pending/processing DM in queue
+      const activeDM = await prisma.dmQueue.findFirst({
+        where: {
+          commentId: commentId,
+          status: { in: ['pending', 'processing'] }
+        }
+      });
 
-          if (monitoredReel) {
-            const scheduledDelay = this.getRandomDelay(60, 300); // 1-5 minutes
-            await prisma.dmQueue.create({
-              data: {
-                igAccountId: account.id,
-                monitoredReelId: monitoredReel.id,
-                recipientIgId: commenterUserId,
-                recipientUsername: commenterUsername,
-                commentId: commentId,
-                commentText: commentText,
-                detectedKeyword: matchResult.keyword,
-                messageToSend: automation.responseMessage,
-                status: 'pending',
-                scheduledAt: new Date(Date.now() + scheduledDelay)
-              }
-            });
-            console.log(`         📬 DM requeued for ${Math.round(scheduledDelay/1000/60)} minutes from now`);
-          }
+      if (activeDM) {
+        console.log(`         ⏭️ DM already queued for this comment (status: ${activeDM.status})`);
+        return;
+      }
+
+      // Check the last failed DM to determine if failure was permanent
+      const lastFailedDM = await prisma.dmQueue.findFirst({
+        where: { commentId: commentId, status: 'failed' },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (lastFailedDM) {
+        const isPermanent = lastFailedDM.errorMessage &&
+          (lastFailedDM.errorMessage.startsWith('PERMANENT:') ||
+           lastFailedDM.errorMessage.startsWith('EXPIRED:') ||
+           lastFailedDM.errorMessage.includes('already replied') ||
+           lastFailedDM.errorMessage.includes('Cannot reply') ||
+           lastFailedDM.errorMessage.includes('does not exist') ||
+           lastFailedDM.errorMessage.includes('comment has been deleted'));
+
+        if (isPermanent) {
+          console.log(`         🚫 Permanent failure for @${commenterUsername} — not requeuing (${lastFailedDM.errorMessage?.substring(0, 80)})`);
           return;
         }
       }
-      console.log(`         ⏭️ Already processed this comment`);
+
+      // Count total DM attempts for this comment to enforce requeue limit
+      const totalAttempts = await prisma.dmQueue.count({
+        where: { commentId: commentId }
+      });
+
+      if (totalAttempts >= MAX_REQUEUE_ATTEMPTS) {
+        console.log(`         🚫 Max requeue attempts (${MAX_REQUEUE_ATTEMPTS}) reached for @${commenterUsername} — giving up`);
+        return;
+      }
+
+      // Safe to requeue — DM failed transiently and we haven't exhausted retries
+      console.log(`         🔄 Trigger exists but DM not sent (attempt ${totalAttempts + 1}/${MAX_REQUEUE_ATTEMPTS}) — requeuing for @${commenterUsername}`);
+
+      const mediaIdStr = media.pk?.toString() || media.id?.toString();
+      const monitoredReel = await prisma.monitoredReel.findUnique({
+        where: {
+          igAccountId_mediaId: {
+            igAccountId: account.id,
+            mediaId: mediaIdStr
+          }
+        }
+      });
+
+      if (monitoredReel) {
+        const scheduledDelay = this.getRandomDelay(60, 300); // 1-5 minutes
+        await prisma.dmQueue.create({
+          data: {
+            igAccountId: account.id,
+            monitoredReelId: monitoredReel.id,
+            recipientIgId: commenterUserId,
+            recipientUsername: commenterUsername,
+            commentId: commentId,
+            commentText: commentText,
+            detectedKeyword: matchResult.keyword,
+            messageToSend: automation.responseMessage,
+            status: 'pending',
+            scheduledAt: new Date(Date.now() + scheduledDelay)
+          }
+        });
+        console.log(`         📬 DM requeued for ${Math.round(scheduledDelay/1000/60)} minutes from now`);
+      }
       return;
     }
 
