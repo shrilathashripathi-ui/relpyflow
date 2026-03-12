@@ -14,6 +14,8 @@ class CommentPoller {
     this.lastPollTime = {};  // Track last poll per account
     this.requestCount = {};  // Track requests per account
     this.emptyResponseCount = {};  // Track consecutive empty/degraded responses per account
+    this.mediaCache = {};     // Cache media list per account to save API calls
+    this.mediaCacheTTL = 10 * 60 * 1000; // Cache media for 10 minutes (media doesn't change often)
   }
 
   /**
@@ -147,8 +149,18 @@ class CommentPoller {
       // Add random delay before API call (2-5 seconds)
       await this.sleep(this.getRandomDelay(2, 5));
 
-      // Get user's recent media (posts/reels)
-      const media = await this.getUserMedia(account);
+      // Use cached media list if available (saves 1 API call per poll cycle)
+      const cached = this.mediaCache[account.id];
+      let media;
+      if (cached && (Date.now() - cached.fetchedAt) < this.mediaCacheTTL) {
+        media = cached.data;
+        console.log(`      Using cached media (${media.length} items, ${Math.round((Date.now() - cached.fetchedAt) / 1000)}s old)`);
+      } else {
+        media = await this.getUserMedia(account);
+        if (media && media.length > 0) {
+          this.mediaCache[account.id] = { data: media, fetchedAt: Date.now() };
+        }
+      }
 
       if (!media || media.length === 0) {
         console.log(`      No recent media found for @${account.username}`);

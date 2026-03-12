@@ -1448,6 +1448,18 @@ class DMQueueWorker {
         if (errorMsg.includes('rate') || errorMsg.includes('limit') || errorMsg.includes('429')) errorType = 'RATE_LIMITED';
         if (errorMsg.includes('block') || errorMsg.includes('ACTION_BLOCKED')) errorType = 'ACTION_BLOCKED';
 
+        // Check if this is a permanent failure (private reply already sent, or comment too old)
+        const isPermanentFailure =
+          errorMsg.includes('already replied') ||
+          errorMsg.includes('already been replied') ||
+          errorMsg.includes('duplicate') ||
+          errorMsg.includes('comment_id') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('comment has been deleted') ||
+          errorMsg.includes('Cannot reply to this comment') ||
+          (errorMsg.includes('code: 100') && dm.commentId) ||  // Invalid parameter for private reply
+          (errorMsg.includes('code: 10') && dm.commentId);     // Permission denied on comment
+
         await this.recordFailure(dm.igAccountId, errorType, {
           source: 'instagram_api',
           errorMessage: errorMsg.substring(0, 1000),
@@ -1457,21 +1469,34 @@ class DMQueueWorker {
           sendAttemptId,
         });
 
-        // Exponential backoff: 5min, 15min, 45min
-        const backoffMs = Math.min(5 * 60 * 1000 * Math.pow(3, dm.retryCount), 3 * 60 * 60 * 1000);
+        if (isPermanentFailure) {
+          // Private reply errors are not retryable — mark as permanently failed
+          console.log(`   🚫 Permanent failure for @${dm.recipientUsername} — not retrying (${errorMsg.substring(0, 100)})`);
+          await prisma.dmQueue.update({
+            where: { id: dm.id },
+            data: {
+              status: 'failed',
+              errorMessage: `PERMANENT: ${error.message.substring(0, 480)}`,
+              retryCount: dm.retryCount,
+            }
+          });
+        } else {
+          // Exponential backoff: 5min, 15min, 45min
+          const backoffMs = Math.min(5 * 60 * 1000 * Math.pow(3, dm.retryCount), 3 * 60 * 60 * 1000);
 
-        await prisma.dmQueue.update({
-          where: { id: dm.id },
-          data: {
-            status: dm.retryCount < 3 ? 'pending' : 'failed',
-            errorMessage: error.message.substring(0, 500),
-            retryCount: dm.retryCount < 3 ? { increment: 1 } : dm.retryCount,
-            scheduledAt: dm.retryCount < 3 ? new Date(Date.now() + backoffMs) : dm.scheduledAt
-          }
-        });
+          await prisma.dmQueue.update({
+            where: { id: dm.id },
+            data: {
+              status: dm.retryCount < 3 ? 'pending' : 'failed',
+              errorMessage: error.message.substring(0, 500),
+              retryCount: dm.retryCount < 3 ? { increment: 1 } : dm.retryCount,
+              scheduledAt: dm.retryCount < 3 ? new Date(Date.now() + backoffMs) : dm.scheduledAt
+            }
+          });
+        }
 
         // Update daily analytics for failures
-        if (dm.retryCount >= 3) {
+        if (isPermanentFailure || dm.retryCount >= 3) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           await prisma.dailyAnalytics.upsert({
