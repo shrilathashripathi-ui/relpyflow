@@ -84,22 +84,27 @@ class OfficialInstagramApiService {
    * Get comments on a media post
    * Requires: instagram_business_manage_comments permission
    */
-  async getMediaComments(accessToken, mediaId) {
-    console.log(`📡 [Official API] Fetching comments for media ${mediaId}`);
+  async getMediaComments(accessToken, mediaId, since = null) {
+    console.log(`📡 [Official API] Fetching comments for media ${mediaId}${since ? ` (since ${since})` : ''}`);
 
     try {
+      const params = {
+        access_token: accessToken,
+        fields: 'id,text,username,timestamp,from{id,username}'
+      };
+
+      // Use 'since' to only fetch new comments (Unix timestamp)
+      if (since) {
+        params.since = since;
+      }
+
       const response = await axios.get(
         `${GRAPH_API_BASE}/${mediaId}/comments`,
-        {
-          params: {
-            access_token: accessToken,
-            fields: 'id,text,username,timestamp,from{id,username}'
-          }
-        }
+        { params }
       );
 
       const comments = response.data?.data || [];
-      console.log(`✅ [Official API] Fetched ${comments.length} comments`);
+      console.log(`✅ [Official API] Fetched ${comments.length} comments${since ? ' (new only)' : ''}`);
       return comments;
     } catch (error) {
       const errorData = error.response?.data?.error || {};

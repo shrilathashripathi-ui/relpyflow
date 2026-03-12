@@ -16,6 +16,7 @@ class CommentPoller {
     this.emptyResponseCount = {};  // Track consecutive empty/degraded responses per account
     this.mediaCache = {};     // Cache media list per account to save API calls
     this.mediaCacheTTL = 10 * 60 * 1000; // Cache media for 10 minutes (media doesn't change often)
+    this.lastCommentFetch = {}; // Track last comment fetch time per media to use 'since' filter
   }
 
   /**
@@ -538,7 +539,15 @@ class CommentPoller {
    * Get comments using Official Instagram Graph API
    */
   async getMediaCommentsOfficial(account, mediaId) {
-    const comments = await officialApiService.getMediaComments(account.accessToken, mediaId);
+    // Use 'since' to only fetch comments newer than last poll (saves API quota)
+    const cacheKey = `${account.id}_${mediaId}`;
+    const lastFetch = this.lastCommentFetch[cacheKey];
+    const sinceTimestamp = lastFetch ? Math.floor(lastFetch / 1000) : null;
+
+    const comments = await officialApiService.getMediaComments(account.accessToken, mediaId, sinceTimestamp);
+
+    // Update last fetch time (use now, not comment timestamp, to avoid gaps)
+    this.lastCommentFetch[cacheKey] = Date.now();
 
     // Normalize to the same shape the rest of the poller expects
     return comments.map(c => ({

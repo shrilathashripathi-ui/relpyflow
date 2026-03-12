@@ -1369,6 +1369,23 @@ class DMQueueWorker {
       // Generate causal chain ID for this specific send attempt
       const sendAttemptId = crypto.randomUUID();
 
+      // Instagram Private Reply must be sent within 7 days of the comment
+      if (dm.commentId && dm.createdAt) {
+        const commentAgeMs = Date.now() - new Date(dm.createdAt).getTime();
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        if (commentAgeMs > SEVEN_DAYS_MS) {
+          console.log(`   ⏰ Skipping DM to @${dm.recipientUsername} — comment is ${Math.round(commentAgeMs / 86400000)}d old (>7d limit)`);
+          await prisma.dmQueue.update({
+            where: { id: dm.id },
+            data: {
+              status: 'failed',
+              errorMessage: 'EXPIRED: Comment older than 7 days — Private Reply no longer allowed',
+            }
+          });
+          continue;
+        }
+      }
+
       try {
         // Mark as processing with sendAttemptId
         await prisma.dmQueue.update({

@@ -31,7 +31,7 @@ router.get('/recent-dms', protect, async (req, res) => {
       id: dm.id,
       username: `@${dm.recipientUsername}`,
       keyword: dm.detectedKeyword || '-',
-      status: dm.status === 'sent' ? 'sent' : dm.status === 'failed' ? 'waiting' : 'sent',
+      status: dm.status || 'unknown',
       time: formatRelativeTime(dm.dmSentAt),
     }));
 
@@ -309,13 +309,14 @@ router.get('/:id/triggers', protect, async (req, res) => {
     // Get pending DM queue items to show scheduled time
     const pendingDMs = await prisma.dmQueue.findMany({
       where: {
-        status: { in: ['pending', 'processing'] }
+        status: { in: ['pending', 'processing', 'failed'] }
       },
       select: {
         id: true,
         commentId: true,
         recipientUsername: true,
         status: true,
+        errorMessage: true,
         scheduledAt: true,
         createdAt: true
       }
@@ -327,7 +328,8 @@ router.get('/:id/triggers', protect, async (req, res) => {
       return {
         ...trigger,
         dmScheduledAt: dmInfo?.scheduledAt || null,
-        dmStatus: dmInfo?.status || (trigger.dmSent ? 'sent' : trigger.status),
+        dmStatus: dmInfo?.status === 'failed' ? 'failed' : dmInfo?.status || (trigger.dmSent ? 'sent' : trigger.status),
+        dmError: dmInfo?.errorMessage || null,
         estimatedResponseTime: dmInfo?.scheduledAt
           ? Math.max(0, Math.round((new Date(dmInfo.scheduledAt) - new Date()) / 1000 / 60))
           : null
