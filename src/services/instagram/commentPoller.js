@@ -631,6 +631,50 @@ class CommentPoller {
     });
 
     if (existingTrigger) {
+      // If trigger exists but DM was never sent, check if we need to requeue
+      if (!existingTrigger.dmSent) {
+        const pendingDM = await prisma.dmQueue.findFirst({
+          where: {
+            commentId: commentId,
+            status: { in: ['pending', 'processing'] }
+          }
+        });
+
+        if (!pendingDM) {
+          // DM failed and no pending retry — requeue it
+          console.log(`         🔄 Trigger exists but DM not sent — requeuing DM for @${commenterUsername}`);
+
+          const mediaIdStr = media.pk?.toString() || media.id?.toString();
+          const monitoredReel = await prisma.monitoredReel.findUnique({
+            where: {
+              igAccountId_mediaId: {
+                igAccountId: account.id,
+                mediaId: mediaIdStr
+              }
+            }
+          });
+
+          if (monitoredReel) {
+            const scheduledDelay = this.getRandomDelay(60, 300); // 1-5 minutes
+            await prisma.dmQueue.create({
+              data: {
+                igAccountId: account.id,
+                monitoredReelId: monitoredReel.id,
+                recipientIgId: commenterUserId,
+                recipientUsername: commenterUsername,
+                commentId: commentId,
+                commentText: commentText,
+                detectedKeyword: matchResult.keyword,
+                messageToSend: automation.responseMessage,
+                status: 'pending',
+                scheduledAt: new Date(Date.now() + scheduledDelay)
+              }
+            });
+            console.log(`         📬 DM requeued for ${Math.round(scheduledDelay/1000/60)} minutes from now`);
+          }
+          return;
+        }
+      }
       console.log(`         ⏭️ Already processed this comment`);
       return;
     }
