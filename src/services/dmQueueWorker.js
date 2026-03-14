@@ -920,6 +920,14 @@ class DMQueueWorker {
     const slots = [];
 
     for (let i = 0; i < count; i++) {
+      // First DM is ALWAYS scheduled for NOW — guarantees at least one DM
+      // is immediately sendable. Without this, jitter can push the first DM
+      // slightly into the future, causing an infinite re-slotting loop.
+      if (i === 0) {
+        slots.push(new Date(now));
+        continue;
+      }
+
       // Base position: evenly spaced from now
       const baseOffset = baseSpacing * i;
 
