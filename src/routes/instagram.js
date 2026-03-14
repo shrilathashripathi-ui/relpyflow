@@ -11,17 +11,23 @@ const prisma = require('../config/prisma');
 // Start OAuth - Using Facebook Login for Instagram Graph API
 // This is the PRODUCTION flow: Facebook Login → Page token → IG Business Account
 // Required for messaging (Private Replies, DMs) which need a Page Access Token
+//
+// IMPORTANT: client_id must be the META APP ID (not the Instagram App ID).
+// Uses FACEBOOK_APP_ID env var (or falls back to INSTAGRAM_CLIENT_ID for backwards compat).
 router.get('/auth', oauthLimiter, protect, (req, res) => {
+  // New permission names (instagram_business_*) — the old instagram_basic/instagram_manage_*
+  // were deprecated with the Instagram Graph API migration
   const scopes = [
-    'instagram_basic',
-    'instagram_manage_comments',
-    'instagram_manage_messages',
+    'instagram_business_basic',
+    'instagram_business_manage_comments',
+    'instagram_business_manage_messages',
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_metadata',
-    'pages_read_user_content',
-    'business_management'
   ].join(',');
+
+  const fbAppId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
+  const redirectUri = process.env.FB_REDIRECT_URI || process.env.INSTAGRAM_REDIRECT_URI;
 
   // Create signed state with userId (10 min expiry)
   const returnTo = req.query.returnTo || '';
@@ -31,9 +37,10 @@ router.get('/auth', oauthLimiter, protect, (req, res) => {
     { expiresIn: '10m' }
   );
 
-  const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URI)}&scope=${scopes}&response_type=code&state=${state}&auth_type=rerequest`;
+  const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&state=${state}&auth_type=rerequest`;
 
   console.log('🔗 Facebook Login OAuth URL generated for user:', req.user.id);
+  console.log('🔗 FB App ID:', fbAppId, '| Redirect URI:', redirectUri);
   res.json({ authUrl });
 });
 
@@ -73,13 +80,17 @@ router.get('/callback', oauthLimiter, async (req, res) => {
       return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('Missing user context. Please try again.')}`);
     }
 
+    const fbAppId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
+    const fbAppSecret = process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET || process.env.INSTAGRAM_CLIENT_SECRET;
+    const redirectUri = process.env.FB_REDIRECT_URI || process.env.INSTAGRAM_REDIRECT_URI;
+
     // Step 1: Exchange code for short-lived Facebook user access token
     console.log('🔑 Exchanging code for Facebook access token...');
     const tokenResponse = await axios.get('https://graph.facebook.com/v22.0/oauth/access_token', {
       params: {
-        client_id: process.env.INSTAGRAM_CLIENT_ID,
-        client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
-        redirect_uri: process.env.INSTAGRAM_REDIRECT_URI,
+        client_id: fbAppId,
+        client_secret: fbAppSecret,
+        redirect_uri: redirectUri,
         code,
       }
     });
@@ -92,8 +103,8 @@ router.get('/callback', oauthLimiter, async (req, res) => {
     const longLivedResponse = await axios.get('https://graph.facebook.com/v22.0/oauth/access_token', {
       params: {
         grant_type: 'fb_exchange_token',
-        client_id: process.env.INSTAGRAM_CLIENT_ID,
-        client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
+        client_id: fbAppId,
+        client_secret: fbAppSecret,
         fb_exchange_token: fbShortLivedToken,
       }
     });
