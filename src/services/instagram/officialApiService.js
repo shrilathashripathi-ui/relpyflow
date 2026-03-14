@@ -52,8 +52,18 @@ class OfficialInstagramApiService {
       return { success: true, messageId: response.data?.message_id, data: response.data };
     } catch (error) {
       const errorData = error.response?.data?.error || {};
-      console.error('❌ [Official API] Failed to send DM:', errorData.message || error.message);
-      throw new Error(`OFFICIAL_API_DM_FAILED: ${errorData.message || error.message} (code: ${errorData.code})`);
+      // Log FULL error details for debugging — subcode, fbtrace_id, and type are critical for diagnosis
+      console.error(`❌ [Official API] Failed to send DM:`, JSON.stringify({
+        message: errorData.message || error.message,
+        code: errorData.code,
+        subcode: errorData.error_subcode,
+        type: errorData.type,
+        fbtrace_id: errorData.fbtrace_id,
+        httpStatus: error.response?.status,
+        url: `${GRAPH_API_BASE}/${igUserId}/messages`,
+        recipientType: usePrivateReply ? 'comment_id' : 'user_id',
+      }));
+      throw new Error(`OFFICIAL_API_DM_FAILED: ${errorData.message || error.message} (code: ${errorData.code}, subcode: ${errorData.error_subcode})`);
     }
   }
 
@@ -207,6 +217,33 @@ class OfficialInstagramApiService {
   /**
    * Refresh a long-lived token (must be done before it expires)
    */
+  /**
+   * Debug an access token — shows granted permissions, expiry, validity
+   * Useful for diagnosing "unexpected error" (code 2) failures
+   */
+  async debugToken(accessToken) {
+    try {
+      const response = await axios.get(
+        `${GRAPH_API_BASE}/debug_token`,
+        { params: { input_token: accessToken, access_token: accessToken } }
+      );
+      const data = response.data?.data || {};
+      console.log('🔍 [Token Debug]', JSON.stringify({
+        is_valid: data.is_valid,
+        app_id: data.app_id,
+        type: data.type,
+        expires_at: data.expires_at ? new Date(data.expires_at * 1000).toISOString() : 'never',
+        scopes: data.scopes,
+        granular_scopes: data.granular_scopes?.map(s => s.permission),
+        error: data.error,
+      }));
+      return data;
+    } catch (error) {
+      console.error('❌ [Token Debug] Failed:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
   async refreshLongLivedToken(currentToken) {
     try {
       const response = await axios.get(

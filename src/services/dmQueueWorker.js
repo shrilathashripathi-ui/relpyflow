@@ -1370,6 +1370,13 @@ class DMQueueWorker {
       // Use Official Instagram API if account has it enabled
       if (account.useOfficialApi && account.accessToken) {
         console.log(`   🔗 @${account.username}: Using Official Instagram API for DMs`);
+
+        // Debug token permissions on first DM attempt per startup (diagnose code:2 errors)
+        if (!this._tokenDebugDone) {
+          this._tokenDebugDone = true;
+          await officialApi.debugToken(account.accessToken);
+        }
+
         await this.processAccountDMsOfficial(dms, account);
         return;
       }
