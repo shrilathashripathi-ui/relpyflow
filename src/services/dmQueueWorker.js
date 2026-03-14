@@ -1218,6 +1218,7 @@ class DMQueueWorker {
 
       // Global kill switch — stops all DM sending instantly
       if (process.env.AUTOMATION_ENABLED === 'false') {
+        console.log('   🛑 Kill switch active (AUTOMATION_ENABLED=false) — skipping all DM processing');
         return;
       }
 
@@ -1287,7 +1288,28 @@ class DMQueueWorker {
       });
 
       if (readyDMs.length === 0) {
-        return; // No DMs ready to send right now
+        // Diagnostic: log why no DMs are ready (runs every 5 min to avoid log spam)
+        if (!this._lastDiagnosticAt || Date.now() - this._lastDiagnosticAt > 5 * 60 * 1000) {
+          this._lastDiagnosticAt = Date.now();
+          const diag = await prisma.dmQueue.groupBy({
+            by: ['status'],
+            _count: { id: true },
+          });
+          const statusSummary = diag.map(d => `${d.status}:${d._count.id}`).join(', ');
+
+          const pausedAccounts = await prisma.instagramAccount.findMany({
+            where: { isPaused: true },
+            select: { username: true, pauseReason: true, pausedUntil: true },
+          });
+
+          const pendingWithFutureSlot = await prisma.dmQueue.count({
+            where: { status: 'pending', scheduledAt: { gt: new Date() } },
+          });
+
+          const now = new Date();
+          console.log(`   📊 [Diagnostic ${now.toISOString()}] No ready DMs. Queue: [${statusSummary}]. Future-slotted: ${pendingWithFutureSlot}. Paused accounts: ${pausedAccounts.length > 0 ? pausedAccounts.map(a => `@${a.username}(${a.pauseReason}, until ${a.pausedUntil?.toISOString()})`).join(', ') : 'none'}`);
+        }
+        return;
       }
 
       console.log(`\n📬 [${new Date().toLocaleTimeString()}] Processing ${readyDMs.length} ready DM(s)...`);
