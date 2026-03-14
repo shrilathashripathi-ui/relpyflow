@@ -1216,6 +1216,11 @@ class DMQueueWorker {
     try {
       this.isProcessing = true;
 
+      // Global kill switch — stops all DM sending instantly
+      if (process.env.AUTOMATION_ENABLED === 'false') {
+        return;
+      }
+
       // Auto-unpause accounts whose cooldown expired
       await this.unpauseExpiredAccounts();
 
@@ -1497,6 +1502,18 @@ class DMQueueWorker {
               retryCount: dm.retryCount,
             }
           });
+
+          // Update trigger to prevent future requeue attempts
+          if (dm.commentId) {
+            await prisma.trigger.updateMany({
+              where: { commentId: dm.commentId },
+              data: {
+                status: 'permanent_failed',
+                lastDmFailureReason: errorMsg.substring(0, 500),
+                lastDmAttemptAt: new Date()
+              }
+            });
+          }
         } else {
           // Exponential backoff: 5min, 15min, 45min
           const backoffMs = Math.min(5 * 60 * 1000 * Math.pow(3, dm.retryCount), 3 * 60 * 60 * 1000);

@@ -88,6 +88,11 @@ class CommentPoller {
    * Main polling function
    */
   async poll() {
+    // Global kill switch
+    if (process.env.AUTOMATION_ENABLED === 'false') {
+      return;
+    }
+
     console.log(`\n📡 [${new Date().toLocaleTimeString()}] Polling for comments...`);
 
     try {
@@ -640,6 +645,18 @@ class CommentPoller {
       // DM was never sent — check if we should requeue
       const MAX_REQUEUE_ATTEMPTS = 3;
 
+      // Check trigger-level retry count first (fastest check)
+      if (existingTrigger.dmRetryCount >= MAX_REQUEUE_ATTEMPTS) {
+        console.log(`         🚫 Max retries (${MAX_REQUEUE_ATTEMPTS}) on trigger for @${commenterUsername} — giving up`);
+        return;
+      }
+
+      // Check if trigger was permanently failed
+      if (existingTrigger.status === 'permanent_failed') {
+        console.log(`         🚫 Permanent failure on trigger for @${commenterUsername} — ${existingTrigger.lastDmFailureReason?.substring(0, 60) || 'unknown'}`);
+        return;
+      }
+
       // Check if there's already a pending/processing DM in queue
       const activeDM = await prisma.dmQueue.findFirst({
         where: {
@@ -669,23 +686,23 @@ class CommentPoller {
            lastFailedDM.errorMessage.includes('comment has been deleted'));
 
         if (isPermanent) {
-          console.log(`         🚫 Permanent failure for @${commenterUsername} — not requeuing (${lastFailedDM.errorMessage?.substring(0, 80)})`);
+          // Mark trigger as permanently failed so we never check again
+          await prisma.trigger.update({
+            where: { id: existingTrigger.id },
+            data: {
+              status: 'permanent_failed',
+              lastDmFailureReason: lastFailedDM.errorMessage?.substring(0, 500),
+              lastDmAttemptAt: new Date()
+            }
+          });
+          console.log(`         🚫 Permanent failure for @${commenterUsername} — marked trigger (${lastFailedDM.errorMessage?.substring(0, 80)})`);
           return;
         }
       }
 
-      // Count total DM attempts for this comment to enforce requeue limit
-      const totalAttempts = await prisma.dmQueue.count({
-        where: { commentId: commentId }
-      });
-
-      if (totalAttempts >= MAX_REQUEUE_ATTEMPTS) {
-        console.log(`         🚫 Max requeue attempts (${MAX_REQUEUE_ATTEMPTS}) reached for @${commenterUsername} — giving up`);
-        return;
-      }
-
-      // Safe to requeue — DM failed transiently and we haven't exhausted retries
-      console.log(`         🔄 Trigger exists but DM not sent (attempt ${totalAttempts + 1}/${MAX_REQUEUE_ATTEMPTS}) — requeuing for @${commenterUsername}`);
+      // Safe to requeue — update trigger retry count and create new DM job
+      const newRetryCount = existingTrigger.dmRetryCount + 1;
+      console.log(`         🔄 Requeuing DM for @${commenterUsername} (attempt ${newRetryCount}/${MAX_REQUEUE_ATTEMPTS})`);
 
       const mediaIdStr = media.pk?.toString() || media.id?.toString();
       const monitoredReel = await prisma.monitoredReel.findUnique({
@@ -699,6 +716,16 @@ class CommentPoller {
 
       if (monitoredReel) {
         const scheduledDelay = this.getRandomDelay(60, 300); // 1-5 minutes
+
+        // Update trigger retry tracking + create new DM job
+        await prisma.trigger.update({
+          where: { id: existingTrigger.id },
+          data: {
+            dmRetryCount: newRetryCount,
+            lastDmAttemptAt: new Date(),
+          }
+        });
+
         await prisma.dmQueue.create({
           data: {
             igAccountId: account.id,

@@ -431,8 +431,13 @@ model Trigger {
   followedAt          DateTime? @map("followed_at")
 
   // Status
-  status              String    @default("pending") // pending, dm_sent, failed, waiting_follow
+  status              String    @default("pending") // pending, dm_sent, failed, permanent_failed, waiting_follow
   errorMessage        String?   @map("error_message")
+
+  // DM retry tracking (across requeue cycles, not just within a single DM job)
+  dmRetryCount        Int       @default(0) @map("dm_retry_count")
+  lastDmAttemptAt     DateTime? @map("last_dm_attempt_at")
+  lastDmFailureReason String?   @map("last_dm_failure_reason")
 
   // Conversation flow tracking
   conversationStep    String    @default("opening") @map("conversation_step") // opening, waiting_button, waiting_follow, waiting_email, link_sent, completed
