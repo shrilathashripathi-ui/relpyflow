@@ -15,12 +15,12 @@ const prisma = require('../config/prisma');
 // IMPORTANT: client_id must be the META APP ID (not the Instagram App ID).
 // Uses FACEBOOK_APP_ID env var (or falls back to INSTAGRAM_CLIENT_ID for backwards compat).
 router.get('/auth', oauthLimiter, protect, (req, res) => {
-  // New permission names (instagram_business_*) — the old instagram_basic/instagram_manage_*
-  // were deprecated with the Instagram Graph API migration
+  // Facebook Login uses NON-business permission names (instagram_basic, not instagram_business_basic).
+  // The instagram_business_* permissions are ONLY valid for Instagram Login dialog.
   const scopes = [
-    'instagram_business_basic',
-    'instagram_business_manage_comments',
-    'instagram_business_manage_messages',
+    'instagram_basic',
+    'instagram_manage_comments',
+    'instagram_manage_messages',
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_metadata',
