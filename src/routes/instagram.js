@@ -9,9 +9,9 @@ const router = express.Router();
 const prisma = require('../config/prisma');
 
 // Start OAuth - Using Facebook Login for Instagram Graph API
+// This is the PRODUCTION flow: Facebook Login → Page token → IG Business Account
+// Required for messaging (Private Replies, DMs) which need a Page Access Token
 router.get('/auth', oauthLimiter, protect, (req, res) => {
-  // For Instagram Graph API (Business/Creator accounts), we use Facebook OAuth
-  // This gives access to instagram_basic, instagram_manage_comments, instagram_manage_messages
   const scopes = [
     'instagram_basic',
     'instagram_manage_comments',
@@ -23,29 +23,59 @@ router.get('/auth', oauthLimiter, protect, (req, res) => {
     'business_management'
   ].join(',');
 
-  // Add auth_type=rerequest to force re-asking for permissions
-  const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URI)}&scope=${scopes}&response_type=code&auth_type=rerequest`;
+  // Create signed state with userId (10 min expiry)
+  const returnTo = req.query.returnTo || '';
+  const state = jwt.sign(
+    { userId: req.user.id, returnTo },
+    process.env.JWT_SECRET,
+    { expiresIn: '10m' }
+  );
 
+  const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URI)}&scope=${scopes}&response_type=code&state=${state}&auth_type=rerequest`;
+
+  console.log('🔗 Facebook Login OAuth URL generated for user:', req.user.id);
   res.json({ authUrl });
 });
 
 // OAuth Callback - Handle Facebook OAuth response
+// Saves Page Access Token + IG Business Account ID directly to the database
 router.get('/callback', oauthLimiter, async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
   try {
-    const { code, error, error_description } = req.query;
+    const { code, state, error, error_description } = req.query;
 
     // Handle OAuth errors
     if (error) {
-      console.error('OAuth Error:', error, error_description);
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=${encodeURIComponent(error_description || error)}`);
+      console.error('Facebook OAuth Error:', error, error_description);
+      return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(error_description || error)}`);
     }
 
     if (!code) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No authorization code received`);
+      return res.redirect(`${frontendUrl}/connect-instagram?error=No authorization code received`);
     }
 
-    // Step 1: Exchange code for Facebook access token
-    const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+    // Verify state JWT to get userId
+    let userId;
+    let returnTo = '';
+    if (state) {
+      try {
+        const decoded = jwt.verify(state, process.env.JWT_SECRET);
+        userId = decoded.userId;
+        returnTo = decoded.returnTo || '';
+      } catch (e) {
+        console.error('Invalid state token:', e.message);
+        return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('Authorization expired. Please try again.')}`);
+      }
+    }
+
+    if (!userId) {
+      return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent('Missing user context. Please try again.')}`);
+    }
+
+    // Step 1: Exchange code for short-lived Facebook user access token
+    console.log('🔑 Exchanging code for Facebook access token...');
+    const tokenResponse = await axios.get('https://graph.facebook.com/v22.0/oauth/access_token', {
       params: {
         client_id: process.env.INSTAGRAM_CLIENT_ID,
         client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
@@ -54,37 +84,47 @@ router.get('/callback', oauthLimiter, async (req, res) => {
       }
     });
 
-    const fbAccessToken = tokenResponse.data.access_token;
+    const fbShortLivedToken = tokenResponse.data.access_token;
+    console.log('✅ Got short-lived Facebook token');
 
-    // Step 2: Get Facebook Pages the user manages
-    const pagesResponse = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: fbAccessToken }
+    // Step 2: Exchange for long-lived Facebook user token (60 days)
+    console.log('🔄 Exchanging for long-lived Facebook token...');
+    const longLivedResponse = await axios.get('https://graph.facebook.com/v22.0/oauth/access_token', {
+      params: {
+        grant_type: 'fb_exchange_token',
+        client_id: process.env.INSTAGRAM_CLIENT_ID,
+        client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
+        fb_exchange_token: fbShortLivedToken,
+      }
+    });
+
+    const fbLongLivedToken = longLivedResponse.data.access_token;
+    console.log('✅ Got long-lived Facebook token');
+
+    // Step 3: Get Facebook Pages — page tokens derived from long-lived user token are non-expiring
+    console.log('📄 Fetching Facebook Pages...');
+    const pagesResponse = await axios.get('https://graph.facebook.com/v22.0/me/accounts', {
+      params: { access_token: fbLongLivedToken }
     });
 
     const pages = pagesResponse.data.data;
 
     if (!pages || pages.length === 0) {
-      // Let's also check what permissions we have
-      const debugResponse = await axios.get('https://graph.facebook.com/v18.0/me/permissions', {
-        params: { access_token: fbAccessToken }
-      });
-      // Also try to get user info
-      const meResponse = await axios.get('https://graph.facebook.com/v18.0/me', {
-        params: {
-          access_token: fbAccessToken,
-          fields: 'id,name,accounts{id,name,access_token,instagram_business_account}'
-        }
-      });
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No Facebook Pages found. Please connect a Facebook Page to your Instagram account.`);
+      console.error('❌ No Facebook Pages found for user');
+      return res.redirect(`${frontendUrl}/connect-instagram?error=No Facebook Pages found. Please connect a Facebook Page to your Instagram account.`);
     }
 
-    // Step 3: Get Instagram Business Account for each page
-    let instagramAccount = null;
+    console.log(`📄 Found ${pages.length} Facebook Page(s): ${pages.map(p => p.name).join(', ')}`);
+
+    // Step 4: Find the Page with a linked Instagram Business Account
+    let igBusinessAccountId = null;
     let pageAccessToken = null;
+    let pageId = null;
+    let pageName = null;
 
     for (const page of pages) {
       try {
-        const igResponse = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
+        const igResponse = await axios.get(`https://graph.facebook.com/v22.0/${page.id}`, {
           params: {
             fields: 'instagram_business_account',
             access_token: page.access_token
@@ -92,43 +132,80 @@ router.get('/callback', oauthLimiter, async (req, res) => {
         });
 
         if (igResponse.data.instagram_business_account) {
-          instagramAccount = igResponse.data.instagram_business_account;
-          pageAccessToken = page.access_token;
+          igBusinessAccountId = igResponse.data.instagram_business_account.id;
+          pageAccessToken = page.access_token; // Non-expiring (derived from long-lived user token)
+          pageId = page.id;
+          pageName = page.name;
+          console.log(`✅ Found IG Business Account ${igBusinessAccountId} on Page "${page.name}" (${page.id})`);
           break;
         }
       } catch (err) {
-        console.log(`No IG account for page ${page.name}`);
+        console.log(`   No IG account for page "${page.name}"`);
       }
     }
 
-    if (!instagramAccount) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=No Instagram Business account found. Please link an Instagram Business/Creator account to your Facebook Page.`);
+    if (!igBusinessAccountId) {
+      return res.redirect(`${frontendUrl}/connect-instagram?error=No Instagram Business account found. Please link an Instagram Business/Creator account to your Facebook Page.`);
     }
 
-    // Step 4: Get Instagram account details
-    const igDetailsResponse = await axios.get(`https://graph.facebook.com/v18.0/${instagramAccount.id}`, {
+    // Step 5: Get Instagram account details using Page token
+    console.log('👤 Fetching Instagram profile...');
+    const igDetailsResponse = await axios.get(`https://graph.facebook.com/v22.0/${igBusinessAccountId}`, {
       params: {
-        fields: 'id,username,profile_picture_url,followers_count',
+        fields: 'id,username,name,profile_picture_url,followers_count',
         access_token: pageAccessToken
       }
     });
 
     const igDetails = igDetailsResponse.data;
+    const username = igDetails.username;
+    console.log(`✅ Instagram profile: @${username} (IGBA ID: ${igBusinessAccountId})`);
 
-    // Redirect to frontend with account info
-    const params = new URLSearchParams({
-      success: 'true',
-      igUserId: igDetails.id,
-      username: igDetails.username,
-      accessToken: pageAccessToken, // Page access token is used for Instagram API
+    // Step 6: Save to database (create or update)
+    const existingAccount = await prisma.instagramAccount.findFirst({
+      where: { username }
     });
 
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?${params.toString()}`);
+    const accountData = {
+      igUserId: igBusinessAccountId,
+      accessToken: encrypt(pageAccessToken),
+      accessTokenExpiry: null, // Page tokens from long-lived user tokens don't expire
+      pageId: pageId,
+      profilePictureUrl: igDetails.profile_picture_url || null,
+      useOfficialApi: true,
+      status: 'active',
+      isPaused: false,
+      pauseReason: null,
+    };
+
+    if (existingAccount) {
+      if (existingAccount.userId === userId) {
+        await prisma.instagramAccount.update({
+          where: { id: existingAccount.id },
+          data: accountData,
+        });
+        console.log(`✅ Updated account @${username} with Page token (Page: "${pageName}", ID: ${pageId})`);
+      } else {
+        return res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(`@${username} is already connected to another account.`)}`);
+      }
+    } else {
+      await prisma.instagramAccount.create({
+        data: {
+          userId,
+          username,
+          ...accountData,
+        }
+      });
+      console.log(`✅ Created account @${username} with Page token (Page: "${pageName}", ID: ${pageId})`);
+    }
+
+    const redirectTarget = returnTo || '/connect-instagram';
+    res.redirect(`${frontendUrl}${redirectTarget}?success=true&username=${encodeURIComponent(username)}`);
 
   } catch (error) {
-    console.error('OAuth Callback Error:', error.response?.data || error.message);
+    console.error('Facebook OAuth Callback Error:', error.response?.data || error.message);
     const errorMsg = error.response?.data?.error?.message || error.message;
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect-instagram?error=${encodeURIComponent(errorMsg)}`);
+    res.redirect(`${frontendUrl}/connect-instagram?error=${encodeURIComponent(errorMsg)}`);
   }
 });
 

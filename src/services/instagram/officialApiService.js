@@ -12,7 +12,10 @@
 
 const axios = require('axios');
 
-const GRAPH_API_BASE = 'https://graph.instagram.com/v22.0';
+// Messaging (Private Replies, DMs) REQUIRES a Page Access Token on graph.facebook.com.
+// Instagram Login tokens on graph.instagram.com can read media/comments but CANNOT send messages.
+// Production flow: Facebook Login → Page token → IG Business Account → graph.facebook.com
+const GRAPH_API_BASE = 'https://graph.facebook.com/v22.0';
 
 class OfficialInstagramApiService {
   /**
@@ -128,38 +131,30 @@ class OfficialInstagramApiService {
    * Requires: instagram_business_basic permission
    */
   async getUserMedia(accessToken, igUserId) {
-    // Prefer 'me' for Instagram OAuth tokens (more reliable than numeric ID)
-    const endpoints = ['me', igUserId].filter(Boolean);
+    // With Page Access Token on graph.facebook.com, use the IG Business Account ID directly
+    // ('me' resolves to the Facebook Page, not the IG account)
+    console.log(`📡 [Official API] Fetching media via /${igUserId}/media`);
     const mediaFields = 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url';
 
-    for (const userId of endpoints) {
-      console.log(`📡 [Official API] Fetching media via /${userId}/media`);
-      try {
-        const response = await axios.get(
-          `${GRAPH_API_BASE}/${userId}/media`,
-          {
-            params: {
-              access_token: accessToken,
-              fields: mediaFields,
-              limit: 25
-            }
+    try {
+      const response = await axios.get(
+        `${GRAPH_API_BASE}/${igUserId}/media`,
+        {
+          params: {
+            access_token: accessToken,
+            fields: mediaFields,
+            limit: 25
           }
-        );
-
-        const media = response.data?.data || [];
-        console.log(`✅ [Official API] Fetched ${media.length} media items via /${userId}/media`);
-        return media;
-      } catch (error) {
-        const errorData = error.response?.data?.error || {};
-        console.error(`❌ [Official API] /${userId}/media failed:`, errorData.message || error.message, '| status:', error.response?.status, '| code:', errorData.code);
-
-        // If this was the last endpoint, throw the error
-        if (userId === endpoints[endpoints.length - 1]) {
-          throw error;
         }
-        // Otherwise try next endpoint
-        console.log('🔄 [Official API] Trying next endpoint...');
-      }
+      );
+
+      const media = response.data?.data || [];
+      console.log(`✅ [Official API] Fetched ${media.length} media items via /${igUserId}/media`);
+      return media;
+    } catch (error) {
+      const errorData = error.response?.data?.error || {};
+      console.error(`❌ [Official API] /${igUserId}/media failed:`, errorData.message || error.message, '| status:', error.response?.status, '| code:', errorData.code);
+      throw error;
     }
   }
 
@@ -188,24 +183,27 @@ class OfficialInstagramApiService {
   }
 
   /**
-   * Exchange short-lived token for a long-lived token (60 days)
+   * Exchange short-lived FB user token for a long-lived token (60 days)
+   * Note: Page tokens derived from a long-lived user token are automatically long-lived.
    */
   async exchangeForLongLivedToken(shortLivedToken) {
     try {
+      // Use Facebook's token exchange (not Instagram's ig_exchange_token)
       const response = await axios.get(
-        `${GRAPH_API_BASE}/access_token`,
+        `${GRAPH_API_BASE}/oauth/access_token`,
         {
           params: {
-            grant_type: 'ig_exchange_token',
-            client_secret: process.env.INSTAGRAM_APP_SECRET,
-            access_token: shortLivedToken
+            grant_type: 'fb_exchange_token',
+            client_id: process.env.INSTAGRAM_CLIENT_ID,
+            client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
+            fb_exchange_token: shortLivedToken
           }
         }
       );
 
       return {
         accessToken: response.data.access_token,
-        expiresIn: response.data.expires_in // seconds (typically 5184000 = 60 days)
+        expiresIn: response.data.expires_in
       };
     } catch (error) {
       const errorData = error.response?.data?.error || {};
@@ -246,12 +244,16 @@ class OfficialInstagramApiService {
 
   async refreshLongLivedToken(currentToken) {
     try {
+      // Page tokens derived from long-lived user tokens don't expire.
+      // But if we're using a Facebook user token, refresh it via the FB endpoint.
       const response = await axios.get(
-        `${GRAPH_API_BASE}/refresh_access_token`,
+        `${GRAPH_API_BASE}/oauth/access_token`,
         {
           params: {
-            grant_type: 'ig_refresh_token',
-            access_token: currentToken
+            grant_type: 'fb_exchange_token',
+            client_id: process.env.INSTAGRAM_CLIENT_ID,
+            client_secret: process.env.INSTAGRAM_CLIENT_SECRET,
+            fb_exchange_token: currentToken
           }
         }
       );

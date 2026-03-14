@@ -60,7 +60,8 @@ const ConnectInstagram = () => {
       if (returnTo) {
         localStorage.setItem('ig_connect_returnTo', returnTo);
       }
-      const response = await instagramAPI.getInstagramAuthUrl(returnTo);
+      // Use Facebook Login flow — gives Page Access Token needed for messaging/DMs
+      const response = await instagramAPI.getAuthUrl(returnTo);
       const authUrl = response.data.authUrl;
       window.location.href = authUrl;
     } catch (err) {

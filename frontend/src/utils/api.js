@@ -53,7 +53,9 @@ export const authAPI = {
 
 // Instagram endpoints
 export const instagramAPI = {
-  getAuthUrl: () => api.get('/instagram/auth'),
+  // Facebook Login flow — Page Access Token needed for messaging/DMs
+  getAuthUrl: (returnTo) => api.get('/instagram/auth', { params: { returnTo } }),
+  // Legacy: Instagram Login flow (read-only, cannot send DMs)
   getInstagramAuthUrl: (returnTo) => api.get('/instagram/auth/instagram', { params: { returnTo } }),
   saveAccount: (data) => api.post('/instagram/account', data),
   getAccounts: () => api.get('/instagram/accounts'),
