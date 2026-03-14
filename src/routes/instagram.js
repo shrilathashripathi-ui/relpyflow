@@ -27,7 +27,7 @@ router.get('/auth', oauthLimiter, protect, (req, res) => {
   ].join(',');
 
   const fbAppId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
-  const redirectUri = process.env.FB_REDIRECT_URI || process.env.INSTAGRAM_REDIRECT_URI;
+  const redirectUri = process.env.FB_REDIRECT_URI || process.env.FB_REDIRECT_URL || process.env.INSTAGRAM_REDIRECT_URI || process.env.INSTAGRAM_OAUTH_REDIRECT_URI;
 
   // Create signed state with userId (10 min expiry)
   const returnTo = req.query.returnTo || '';
@@ -82,7 +82,7 @@ router.get('/callback', oauthLimiter, async (req, res) => {
 
     const fbAppId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
     const fbAppSecret = process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET || process.env.INSTAGRAM_CLIENT_SECRET;
-    const redirectUri = process.env.FB_REDIRECT_URI || process.env.INSTAGRAM_REDIRECT_URI;
+    const redirectUri = process.env.FB_REDIRECT_URI || process.env.FB_REDIRECT_URL || process.env.INSTAGRAM_REDIRECT_URI || process.env.INSTAGRAM_OAUTH_REDIRECT_URI;
 
     // Step 1: Exchange code for short-lived Facebook user access token
     console.log('🔑 Exchanging code for Facebook access token...');
