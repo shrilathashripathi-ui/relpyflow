@@ -78,8 +78,8 @@ model InstagramAccount {
 
   // Account personality (Phase 7)
   behaviorSeed        Float?    @map("behavior_seed")          // 0.0-1.0 random seed (set once on creation)
-  workingHoursStart   Int       @default(9)  @map("working_hours_start")  // Hour (0-23) when account "wakes up"
-  workingHoursEnd     Int       @default(22) @map("working_hours_end")    // Hour (0-23) when account "sleeps"
+  workingHoursStart   Int       @default(3)  @map("working_hours_start")  // Hour (0-23 UTC) when account "wakes up" — default 3 UTC = ~8:30 AM IST
+  workingHoursEnd     Int       @default(17) @map("working_hours_end")    // Hour (0-23 UTC) when account "sleeps" — default 17 UTC = ~10:30 PM IST
   aggressionFactor    Float     @default(1.0) @map("aggression_factor")   // 0.5 = cautious, 1.0 = normal, 1.5 = aggressive
 
   // User override governance
