@@ -489,8 +489,7 @@ class DMQueueWorker {
   async canSendDM(accountId) {
     // Working hours check REMOVED — DM timing is already controlled by
     // rate limits (DMs/hour, DMs/day) and slot distribution scheduling.
-    // The working hours gate was blocking DMs during valid IST business hours
-    // due to UTC conversion issues and added no value on top of existing rate limits.
+    const personality = await this.getPersonality(accountId);
 
     const baseLimits = await this.getAccountLimits(accountId);
 
