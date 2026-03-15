@@ -487,11 +487,10 @@ class DMQueueWorker {
    *   3. density10    — sends in last 10 minutes vs maxBurst (prevents front-loading)
    */
   async canSendDM(accountId) {
-    // Phase 7: Check working hours
-    const personality = await this.getPersonality(accountId);
-    if (!this.isWithinWorkingHours(personality)) {
-      return { allowed: false, reason: `outside_working_hours (${personality.workStart}:00-${personality.workEnd}:00)`, density60: 0, density10: 0, limits: {} };
-    }
+    // Working hours check REMOVED — DM timing is already controlled by
+    // rate limits (DMs/hour, DMs/day) and slot distribution scheduling.
+    // The working hours gate was blocking DMs during valid IST business hours
+    // due to UTC conversion issues and added no value on top of existing rate limits.
 
     const baseLimits = await this.getAccountLimits(accountId);
 
@@ -965,14 +964,8 @@ class DMQueueWorker {
 
     const personality = await this.getPersonality(accountId);
 
-    // Constrain slot window to remaining working hours
-    const now = new Date();
-    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
-    const endMinute = personality.workEnd * 60;
-    const remainingWorkMinutes = endMinute > minuteOfDay ? endMinute - minuteOfDay : 0;
-    const maxWindowMs = Math.min(60 * 60 * 1000, remainingWorkMinutes * 60 * 1000); // min(1hr, remaining work time)
-
-    if (maxWindowMs < 5 * 60 * 1000) return; // Less than 5 min of work time left — don't slot
+    // Use a 1-hour window for slot distribution (working hours constraint removed)
+    const maxWindowMs = 60 * 60 * 1000;
 
     const slots = this.generateTimeSlots(toSlot.length, admission.limits, personality.seed, maxWindowMs);
 
