@@ -223,11 +223,14 @@ class OfficialInstagramApiService {
    */
   async debugToken(accessToken) {
     try {
-      // debug_token must use graph.facebook.com — it doesn't work on graph.instagram.com
-      // (Instagram Login tokens return code 10 "Application does not have permission")
+      // debug_token requires an app access token for introspection.
+      // Instagram Login tokens can't self-introspect (code 190 "Cannot parse").
+      const appId = process.env.FACEBOOK_APP_ID || process.env.META_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
+      const appSecret = process.env.FACEBOOK_APP_SECRET || process.env.META_APP_SECRET || process.env.INSTAGRAM_CLIENT_SECRET;
+      const appToken = `${appId}|${appSecret}`;
       const response = await axios.get(
         'https://graph.facebook.com/v22.0/debug_token',
-        { params: { input_token: accessToken, access_token: accessToken } }
+        { params: { input_token: accessToken, access_token: appToken } }
       );
       const data = response.data?.data || {};
       console.log('🔍 [Token Debug]', JSON.stringify({
