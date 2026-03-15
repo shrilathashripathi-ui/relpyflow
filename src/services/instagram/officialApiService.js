@@ -12,10 +12,12 @@
 
 const axios = require('axios');
 
-// Messaging (Private Replies, DMs) REQUIRES a Page Access Token on graph.facebook.com.
-// Instagram Login tokens on graph.instagram.com can read media/comments but CANNOT send messages.
-// Production flow: Facebook Login → Page token → IG Business Account → graph.facebook.com
-const GRAPH_API_BASE = 'https://graph.facebook.com/v22.0';
+// Instagram Business Login uses instagram_business_manage_messages permission.
+// Works on graph.instagram.com with Instagram user tokens.
+// The Facebook Login approach (graph.facebook.com + Page token + instagram_manage_messages)
+// gives error code 3 "Application does not have the capability" because the app is
+// configured for "Instagram business login" which requires instagram_business_* permissions.
+const GRAPH_API_BASE = 'https://graph.instagram.com/v22.0';
 
 class OfficialInstagramApiService {
   /**
@@ -131,14 +133,14 @@ class OfficialInstagramApiService {
    * Requires: instagram_business_basic permission
    */
   async getUserMedia(accessToken, igUserId) {
-    // With Page Access Token on graph.facebook.com, use the IG Business Account ID directly
-    // ('me' resolves to the Facebook Page, not the IG account)
-    console.log(`📡 [Official API] Fetching media via /${igUserId}/media`);
+    // With Instagram Login token on graph.instagram.com, use /me/media
+    // (/{igUserId}/media also works but /me is simpler and always resolves correctly)
+    console.log(`📡 [Official API] Fetching media via /me/media`);
     const mediaFields = 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url';
 
     try {
       const response = await axios.get(
-        `${GRAPH_API_BASE}/${igUserId}/media`,
+        `${GRAPH_API_BASE}/me/media`,
         {
           params: {
             access_token: accessToken,
@@ -149,11 +151,11 @@ class OfficialInstagramApiService {
       );
 
       const media = response.data?.data || [];
-      console.log(`✅ [Official API] Fetched ${media.length} media items via /${igUserId}/media`);
+      console.log(`✅ [Official API] Fetched ${media.length} media items via /me/media`);
       return media;
     } catch (error) {
       const errorData = error.response?.data?.error || {};
-      console.error(`❌ [Official API] /${igUserId}/media failed:`, errorData.message || error.message, '| status:', error.response?.status, '| code:', errorData.code);
+      console.error(`❌ [Official API] /me/media failed:`, errorData.message || error.message, '| status:', error.response?.status, '| code:', errorData.code);
       throw error;
     }
   }

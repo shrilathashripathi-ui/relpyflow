@@ -53,10 +53,12 @@ export const authAPI = {
 
 // Instagram endpoints
 export const instagramAPI = {
-  // Facebook Login flow — Page Access Token needed for messaging/DMs
-  getAuthUrl: (returnTo) => api.get('/instagram/auth', { params: { returnTo } }),
-  // Legacy: Instagram Login flow (read-only, cannot send DMs)
-  getInstagramAuthUrl: (returnTo) => api.get('/instagram/auth/instagram', { params: { returnTo } }),
+  // Instagram Business Login — uses instagram_business_manage_messages for DMs
+  // This is the correct flow for apps configured with "Instagram business login" in Meta Dashboard
+  getAuthUrl: (returnTo) => api.get('/instagram/auth/instagram', { params: { returnTo } }),
+  // Facebook Login flow — DO NOT USE: gives Page token with instagram_manage_messages
+  // which gets error code 3 "Application does not have the capability"
+  getFacebookAuthUrl: (returnTo) => api.get('/instagram/auth', { params: { returnTo } }),
   saveAccount: (data) => api.post('/instagram/account', data),
   getAccounts: () => api.get('/instagram/accounts'),
   getMedia: (accountId) => api.get(`/instagram/accounts/${accountId}/media`),
