@@ -223,8 +223,10 @@ class OfficialInstagramApiService {
    */
   async debugToken(accessToken) {
     try {
+      // debug_token must use graph.facebook.com — it doesn't work on graph.instagram.com
+      // (Instagram Login tokens return code 10 "Application does not have permission")
       const response = await axios.get(
-        `${GRAPH_API_BASE}/debug_token`,
+        'https://graph.facebook.com/v22.0/debug_token',
         { params: { input_token: accessToken, access_token: accessToken } }
       );
       const data = response.data?.data || {};
