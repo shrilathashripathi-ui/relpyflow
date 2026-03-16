@@ -38,61 +38,58 @@ class OfficialInstagramApiService {
       ? { comment_id: commentId }
       : { id: recipientId };
 
-    // Verify token identity before sending — helps diagnose auth issues
+    // Verify token identity and get the REAL user ID from the token.
+    // The igUserId from the DB may be stale (e.g. from a previous auth flow).
+    // The messaging endpoint MUST use the ID that matches the token.
+    let resolvedUserId = igUserId;
     try {
       const meResp = await axios.get(`${GRAPH_API_BASE}/me`, {
         params: { access_token: accessToken, fields: 'user_id,username,name' }
       });
-      console.log(`🔑 [Token Check] Authenticated as: @${meResp.data.username} (${meResp.data.user_id})`);
+      const tokenUserId = meResp.data.user_id?.toString() || meResp.data.id?.toString();
+      console.log(`🔑 [Token Check] Authenticated as: @${meResp.data.username} (${tokenUserId})`);
+      if (tokenUserId && tokenUserId !== igUserId) {
+        console.log(`⚠️ [ID Mismatch] DB igUserId=${igUserId} but token resolves to ${tokenUserId} — using token ID`);
+        resolvedUserId = tokenUserId;
+      }
     } catch (meErr) {
       console.error(`🔑 [Token Check] /me failed:`, meErr.response?.data?.error?.message || meErr.message);
     }
 
-    console.log(`📤 [Official API] Sending DM from ${igUserId} via ${usePrivateReply ? 'Private Reply (comment ' + commentId + ')' : 'direct (user ' + recipientId + ')'}`);
+    console.log(`📤 [Official API] Sending DM from ${resolvedUserId} via ${usePrivateReply ? 'Private Reply (comment ' + commentId + ')' : 'direct (user ' + recipientId + ')'}`);
 
-    // Try graph.instagram.com first, fall back to graph.facebook.com if code 2
-    const endpoints = [
-      `${GRAPH_API_BASE}/${igUserId}/messages`,
-      `https://graph.facebook.com/v22.0/${igUserId}/messages`,
-    ];
+    // Use the resolved user ID (from /me) for the messaging endpoint
+    const endpoint = `${GRAPH_API_BASE}/${resolvedUserId}/messages`;
 
-    let lastError = null;
-    for (const endpoint of endpoints) {
-      try {
-        const response = await axios.post(
-          endpoint,
-          {
-            recipient,
-            message: { text: messageText }
-          },
-          {
-            params: { access_token: accessToken },
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
-
-        console.log(`✅ [Official API] DM sent successfully via ${endpoint}`, usePrivateReply ? '(private reply)' : '(direct)');
-        return { success: true, messageId: response.data?.message_id, data: response.data };
-      } catch (error) {
-        const errorData = error.response?.data?.error || {};
-        console.error(`❌ [Official API] Failed on ${endpoint}:`, JSON.stringify({
-          message: errorData.message || error.message,
-          code: errorData.code,
-          subcode: errorData.error_subcode,
-          is_transient: errorData.is_transient,
-        }));
-
-        // If error is NOT transient/code-2, don't try fallback — it's a real error
-        if (errorData.code !== 2) {
-          throw new Error(`OFFICIAL_API_DM_FAILED: ${errorData.message || error.message} (code: ${errorData.code}, subcode: ${errorData.error_subcode})`);
+    try {
+      const response = await axios.post(
+        endpoint,
+        {
+          recipient,
+          message: { text: messageText }
+        },
+        {
+          params: { access_token: accessToken },
+          headers: { 'Content-Type': 'application/json' }
         }
-        lastError = error;
-      }
-    }
+      );
 
-    // Both endpoints failed with code 2
-    const errorData = lastError?.response?.data?.error || {};
-    throw new Error(`OFFICIAL_API_DM_FAILED: ${errorData.message || lastError.message} (code: ${errorData.code}, subcode: ${errorData.error_subcode})`);
+      console.log(`✅ [Official API] DM sent successfully via ${endpoint}`, usePrivateReply ? '(private reply)' : '(direct)');
+      return { success: true, messageId: response.data?.message_id, data: response.data };
+    } catch (error) {
+      const errorData = error.response?.data?.error || {};
+      console.error(`❌ [Official API] Failed to send DM:`, JSON.stringify({
+        message: errorData.message || error.message,
+        code: errorData.code,
+        subcode: errorData.error_subcode,
+        type: errorData.type,
+        fbtrace_id: errorData.fbtrace_id,
+        httpStatus: error.response?.status,
+        url: endpoint,
+        recipientType: usePrivateReply ? 'comment_id' : 'user_id',
+      }));
+      throw new Error(`OFFICIAL_API_DM_FAILED: ${errorData.message || error.message} (code: ${errorData.code}, subcode: ${errorData.error_subcode})`);
+    }
   }
 
   /**
