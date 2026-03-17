@@ -1363,10 +1363,32 @@ class DMQueueWorker {
       if (account.useOfficialApi && account.accessToken) {
         console.log(`   🔗 @${account.username}: Using Official Instagram API for DMs`);
 
-        // Debug token permissions on first DM attempt per startup (diagnose code:2 errors)
-        if (!this._tokenDebugDone) {
-          this._tokenDebugDone = true;
-          await officialApi.debugToken(account.accessToken);
+        // Resolve token's real user ID once per startup, then persist to DB.
+        // The igUserId from DB may be stale (e.g. from a previous auth flow).
+        if (!this._resolvedUserIds) this._resolvedUserIds = {};
+        if (!this._resolvedUserIds[account.id]) {
+          try {
+            const axios = require('axios');
+            const meResp = await axios.get('https://graph.instagram.com/v22.0/me', {
+              params: { access_token: account.accessToken, fields: 'user_id,username' }
+            });
+            const tokenUserId = meResp.data.user_id?.toString() || meResp.data.id?.toString();
+            if (tokenUserId && tokenUserId !== account.igUserId) {
+              console.log(`   ⚠️ [ID Fix] DB igUserId=${account.igUserId} → token resolves to ${tokenUserId}. Updating DB.`);
+              await prisma.instagramAccount.update({
+                where: { id: account.id },
+                data: { igUserId: tokenUserId }
+              });
+              account.igUserId = tokenUserId;
+            }
+            this._resolvedUserIds[account.id] = tokenUserId || account.igUserId;
+          } catch (meErr) {
+            console.error(`   🔑 [ID Resolve] /me failed:`, meErr.response?.data?.error?.message || meErr.message);
+            this._resolvedUserIds[account.id] = account.igUserId; // fallback to DB value
+          }
+        } else {
+          // Use cached resolved ID
+          account.igUserId = this._resolvedUserIds[account.id];
         }
 
         await this.processAccountDMsOfficial(dms, account);

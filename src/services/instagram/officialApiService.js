@@ -38,28 +38,12 @@ class OfficialInstagramApiService {
       ? { comment_id: commentId }
       : { id: recipientId };
 
-    // Verify token identity and get the REAL user ID from the token.
-    // The igUserId from the DB may be stale (e.g. from a previous auth flow).
-    // The messaging endpoint MUST use the ID that matches the token.
-    let resolvedUserId = igUserId;
-    try {
-      const meResp = await axios.get(`${GRAPH_API_BASE}/me`, {
-        params: { access_token: accessToken, fields: 'user_id,username,name' }
-      });
-      const tokenUserId = meResp.data.user_id?.toString() || meResp.data.id?.toString();
-      console.log(`🔑 [Token Check] Authenticated as: @${meResp.data.username} (${tokenUserId})`);
-      if (tokenUserId && tokenUserId !== igUserId) {
-        console.log(`⚠️ [ID Mismatch] DB igUserId=${igUserId} but token resolves to ${tokenUserId} — using token ID`);
-        resolvedUserId = tokenUserId;
-      }
-    } catch (meErr) {
-      console.error(`🔑 [Token Check] /me failed:`, meErr.response?.data?.error?.message || meErr.message);
-    }
+    // igUserId is pre-resolved by the worker (calls /me once, persists to DB).
+    // No per-DM /me call needed — saves latency and API quota.
 
-    console.log(`📤 [Official API] Sending DM from ${resolvedUserId} via ${usePrivateReply ? 'Private Reply (comment ' + commentId + ')' : 'direct (user ' + recipientId + ')'}`);
+    console.log(`📤 [Official API] Sending DM from ${igUserId} via ${usePrivateReply ? 'Private Reply (comment ' + commentId + ')' : 'direct (user ' + recipientId + ')'}`);
 
-    // Use the resolved user ID (from /me) for the messaging endpoint
-    const endpoint = `${GRAPH_API_BASE}/${resolvedUserId}/messages`;
+    const endpoint = `${GRAPH_API_BASE}/${igUserId}/messages`;
 
     try {
       const response = await axios.post(
