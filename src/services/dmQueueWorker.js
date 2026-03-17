@@ -1383,8 +1383,10 @@ class DMQueueWorker {
             }
             this._resolvedUserIds[account.id] = tokenUserId || account.igUserId;
           } catch (meErr) {
-            console.error(`   🔑 [ID Resolve] /me failed:`, meErr.response?.data?.error?.message || meErr.message);
-            this._resolvedUserIds[account.id] = account.igUserId; // fallback to DB value
+            // FAIL FAST: if we can't verify the token's user ID, do NOT send.
+            // Sending with a wrong ID is worse than not sending.
+            console.error(`   🚫 [ID Resolve] /me failed — refusing to send DMs with unverified ID:`, meErr.response?.data?.error?.message || meErr.message);
+            return; // skip this account entirely, try again next cycle
           }
         } else {
           // Use cached resolved ID
