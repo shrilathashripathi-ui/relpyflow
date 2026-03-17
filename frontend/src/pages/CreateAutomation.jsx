@@ -205,8 +205,15 @@ const CreateAutomation = () => {
       const response = await automationAPI.getById(editId);
       const automation = response.data.automation || response.data;
       setAutomationName(automation.name || '');
-      setKeywords(automation.keywords?.map(k => k.keyword) || []);
+      setKeywords(automation.keywords || []);
       setOpeningMessage(automation.responseMessage || openingMessage);
+      if (automation.selectedMediaIds?.length > 0) {
+        setSelectedMedia(automation.selectedMediaIds.map(id => ({ id })));
+      }
+      if (automation.commentReplyEnabled) setReplyToComments(true);
+      if (automation.commentReplies?.length > 0) setCommentReplies(automation.commentReplies);
+      if (automation.askForFollowEnabled) setAskForFollowEnabled(true);
+      if (automation.askForFollowMessage) setFollowAskMessage(automation.askForFollowMessage);
     } catch (error) {
       console.error('Error loading automation:', error);
     }
