@@ -124,6 +124,7 @@ const CreateAutomation = () => {
   const step4Ref = useRef(null);
   const step5Ref = useRef(null);
   const hasFetched = useRef(false);
+  const pendingMediaIds = useRef(null); // For edit mode: store selectedMediaIds until media loads
   const CACHE_DURATION = 30 * 60 * 1000;
 
   const getCachedMedia = (accountId) => {
@@ -149,6 +150,20 @@ const CreateAutomation = () => {
       fetchInitialData();
     }
   }, []);
+
+  // When media loads in edit mode, match selectedMediaIds to full media objects
+  useEffect(() => {
+    if (pendingMediaIds.current && media.length > 0) {
+      const matched = media.filter(m => pendingMediaIds.current.includes(m.id));
+      if (matched.length > 0) {
+        setSelectedMedia(matched);
+      } else {
+        // IDs didn't match — keep the raw IDs so submission still works
+        setSelectedMedia(pendingMediaIds.current.map(id => ({ id })));
+      }
+      pendingMediaIds.current = null;
+    }
+  }, [media]);
 
   // Listen for account changes from sidebar
   useEffect(() => {
@@ -208,7 +223,13 @@ const CreateAutomation = () => {
       setKeywords(automation.keywords || []);
       setOpeningMessage(automation.responseMessage || openingMessage);
       if (automation.selectedMediaIds?.length > 0) {
-        setSelectedMedia(automation.selectedMediaIds.map(id => ({ id })));
+        pendingMediaIds.current = automation.selectedMediaIds;
+        // If media already loaded, match immediately
+        if (media.length > 0) {
+          const matched = media.filter(m => automation.selectedMediaIds.includes(m.id));
+          setSelectedMedia(matched.length > 0 ? matched : automation.selectedMediaIds.map(id => ({ id })));
+          pendingMediaIds.current = null;
+        }
       }
       if (automation.commentReplyEnabled) setReplyToComments(true);
       if (automation.commentReplies?.length > 0) setCommentReplies(automation.commentReplies);
@@ -414,6 +435,11 @@ const CreateAutomation = () => {
                     <MediaTile key={item.id} item={item} isSelected={!!selectedMedia.find(m => m.id === item.id)} onClick={() => handleMediaSelect(item)} index={index} />
                   ))}
                 </div>
+              )}
+              {media.length > 0 && (
+                <p className={`text-sm mt-2 ${selectedMedia.length > 0 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
+                  {selectedMedia.length > 0 ? `${selectedMedia.length} post${selectedMedia.length > 1 ? 's' : ''} selected` : 'Please select at least one post or reel'}
+                </p>
               )}
             </div>
             {!unlockedSteps.includes(2) && (
