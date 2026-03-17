@@ -9,6 +9,22 @@ const uptimeMonitor = require('../services/uptimeMonitor');
 const router = express.Router();
 const prisma = require('../config/prisma');
 
+// Normalize DM status for frontend display.
+// NEVER default to 'sent' — failed DMs must show as failed.
+function normalizeDmStatus(rawStatus) {
+  const statusMap = {
+    sent: 'sent',
+    failed: 'failed',
+    permanent_failed: 'failed',
+    blocked: 'failed',
+    processing: 'sending',
+    pending: 'pending',
+    expired: 'expired',
+    dropped: 'expired',
+  };
+  return statusMap[rawStatus] || 'unknown';
+}
+
 // Get overall dashboard metrics
 router.get('/dashboard', protect, async (req, res) => {
   try {
@@ -315,7 +331,7 @@ router.get('/dm-history', protect, async (req, res) => {
         messageSent: h.messageSent,
         commentText: h.commentText,
         detectedKeyword: h.detectedKeyword,
-        status: h.status,
+        status: normalizeDmStatus(h.status),
         accountUsername: h.igAccount.username,
         sentAt: h.dmSentAt
       }))

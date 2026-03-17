@@ -7,6 +7,22 @@ const crypto = require('crypto');
 const router = express.Router();
 const prisma = require('../config/prisma');
 
+// Normalize DM status for frontend display.
+// NEVER default to 'sent' — failed DMs must show as failed.
+function normalizeDmStatus(rawStatus) {
+  const statusMap = {
+    sent: 'sent',
+    failed: 'failed',
+    permanent_failed: 'failed',
+    blocked: 'failed',
+    processing: 'sending',
+    pending: 'pending',
+    expired: 'expired',
+    dropped: 'expired',
+  };
+  return statusMap[rawStatus] || 'unknown';
+}
+
 // Get recent DMs across all user's automations (for dashboard)
 router.get('/recent-dms', protect, async (req, res) => {
   try {
@@ -31,7 +47,7 @@ router.get('/recent-dms', protect, async (req, res) => {
       id: dm.id,
       username: `@${dm.recipientUsername}`,
       keyword: dm.detectedKeyword || '-',
-      status: dm.status || 'unknown',
+      status: normalizeDmStatus(dm.status),
       time: formatRelativeTime(dm.dmSentAt),
     }));
 
@@ -328,7 +344,7 @@ router.get('/:id/triggers', protect, async (req, res) => {
       return {
         ...trigger,
         dmScheduledAt: dmInfo?.scheduledAt || null,
-        dmStatus: dmInfo?.status === 'failed' ? 'failed' : dmInfo?.status || (trigger.dmSent ? 'sent' : trigger.status),
+        dmStatus: dmInfo ? normalizeDmStatus(dmInfo.status) : normalizeDmStatus(trigger.status),
         dmError: dmInfo?.errorMessage || null,
         estimatedResponseTime: dmInfo?.scheduledAt
           ? Math.max(0, Math.round((new Date(dmInfo.scheduledAt) - new Date()) / 1000 / 60))
@@ -376,7 +392,7 @@ router.get('/:id/dm-queue', protect, async (req, res) => {
         : 0,
       waitingFor: dm.status === 'pending' && dm.scheduledAt > now
         ? formatTimeRemaining(dm.scheduledAt - now)
-        : dm.status === 'sent' ? 'Sent' : dm.status
+        : dm.status === 'sent' ? 'Sent' : normalizeDmStatus(dm.status)
     }));
 
     res.json({ queue: queueWithTiming });
