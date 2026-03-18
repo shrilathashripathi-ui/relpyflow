@@ -90,13 +90,14 @@ class UptimeMonitor {
         blocked: accounts.filter(a => a.status === 'action_blocked').length
       };
 
-      // Check for accounts needing attention
+      // Check for accounts needing attention (informational, not a system error)
       const problematicAccounts = accounts.filter(a =>
         a.status === 'session_expired' || a.status === 'action_blocked'
       );
 
       if (problematicAccounts.length > 0) {
-        check.errors.push(`${problematicAccounts.length} account(s) need attention`);
+        check.warnings = check.warnings || [];
+        check.warnings.push(`${problematicAccounts.length} account(s) need attention`);
       }
     } catch (error) {
       check.errors.push(`Session check: ${error.message}`);
@@ -183,9 +184,8 @@ class UptimeMonitor {
     if (!lastCheck) return 'unknown';
     if (!lastCheck.database) return 'critical';
     if (lastCheck.errors.length > 0) return 'degraded';
-    if (Object.values(this.metrics.workerStatus).every(s => s)) return 'healthy';
 
-    return 'degraded';
+    return 'healthy';
   }
 
   /**
