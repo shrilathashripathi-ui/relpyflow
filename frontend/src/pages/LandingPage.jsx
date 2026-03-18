@@ -756,17 +756,16 @@ const LandingPage = () => {
             <div>
               <h4 className="font-semibold text-gray-900 mb-4">Company</h4>
               <ul className="space-y-2 text-gray-600 text-sm">
-                <li><a href="#" className="hover:text-purple-600">About</a></li>
-                <li><a href="#" className="hover:text-purple-600">Blog</a></li>
-                <li><a href="#" className="hover:text-purple-600">Contact</a></li>
+                <li><a href="#faq" className="hover:text-purple-600">FAQ</a></li>
+                <li><a href="mailto:support@replyflows.in" className="hover:text-purple-600">Contact</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 mb-4">Legal</h4>
               <ul className="space-y-2 text-gray-600 text-sm">
-                <li><a href="/privacy-policy" className="hover:text-purple-600">Privacy Policy</a></li>
-                <li><a href="/terms" className="hover:text-purple-600">Terms of Service</a></li>
-                <li><a href="/data-deletion" className="hover:text-purple-600">Data Deletion</a></li>
+                <li><a href="https://api.replyflows.in/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-purple-600">Privacy Policy</a></li>
+                <li><a href="https://api.replyflows.in/terms" target="_blank" rel="noopener noreferrer" className="hover:text-purple-600">Terms of Service</a></li>
+                <li><a href="https://api.replyflows.in/data-deletion" target="_blank" rel="noopener noreferrer" className="hover:text-purple-600">Data Deletion</a></li>
               </ul>
             </div>
           </div>
