@@ -50,31 +50,32 @@ const Analytics = () => {
 
       // Calculate stats
       const totalDMs = automations.reduce((sum, a) => sum + (a.dmsSentCount || 0), 0);
-      const totalReplies = Math.floor(totalDMs * 0.47); // Mock data
-      const totalLeads = Math.floor(totalDMs * 0.15);
+      const totalReplies = automations.reduce((sum, a) => sum + (a.repliesCount || 0), 0);
+      const totalLeads = automations.reduce((sum, a) => sum + (a.leadsCount || 0), 0);
       const replyRate = totalDMs > 0 ? ((totalReplies / totalDMs) * 100).toFixed(1) : 0;
       const conversionRate = totalReplies > 0 ? ((totalLeads / totalReplies) * 100).toFixed(1) : 0;
 
       setStats({ totalDMs, totalReplies, totalLeads, replyRate, conversionRate });
 
-      // Generate mock chart data for the last 7 days
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const mockChart = days.map((day, i) => ({
-        day,
-        dms: Math.floor(Math.random() * 50) + 10,
-        replies: Math.floor(Math.random() * 25) + 5,
-        leads: Math.floor(Math.random() * 10) + 1
-      }));
-      setChartData(mockChart);
+      // Chart data starts empty - will be populated when real daily analytics are available
+      setChartData([]);
 
-      // Mock top keywords
-      setTopKeywords([
-        { keyword: 'PRICE', dms: 127, replies: 61, rate: '48%' },
-        { keyword: 'LINK', dms: 89, replies: 38, rate: '43%' },
-        { keyword: 'discount', dms: 56, replies: 29, rate: '52%' },
-        { keyword: 'INFO', dms: 34, replies: 12, rate: '35%' },
-        { keyword: 'BUY', dms: 23, replies: 11, rate: '48%' }
-      ]);
+      // Build top keywords from automation keyword data
+      const keywordMap = {};
+      automations.forEach(a => {
+        (a.keywords || []).forEach(kw => {
+          const word = typeof kw === 'string' ? kw : kw.keyword;
+          if (!word) return;
+          if (!keywordMap[word]) keywordMap[word] = { keyword: word, dms: 0, replies: 0 };
+          keywordMap[word].dms += (kw.dmsSentCount || 0);
+          keywordMap[word].replies += (kw.repliesCount || 0);
+        });
+      });
+      const kwList = Object.values(keywordMap)
+        .map(kw => ({ ...kw, rate: kw.dms > 0 ? `${((kw.replies / kw.dms) * 100).toFixed(0)}%` : '0%' }))
+        .sort((a, b) => b.dms - a.dms)
+        .slice(0, 5);
+      setTopKeywords(kwList);
     } catch (error) {
       console.error('Error fetching analytics:', error);
     }
@@ -164,7 +165,7 @@ const Analytics = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Total DMs</span>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalDMs}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">↑ 12% vs last period</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.totalDMs > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
@@ -177,7 +178,7 @@ const Analytics = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Replies</span>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalReplies}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">↑ 8% vs last period</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.totalReplies > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
@@ -190,7 +191,7 @@ const Analytics = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Leads</span>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalLeads}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">↑ 23% vs last period</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.totalLeads > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
@@ -203,7 +204,7 @@ const Analytics = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Reply Rate</span>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.replyRate}%</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">↑ 5% vs last period</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.totalDMs > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
@@ -216,7 +217,7 @@ const Analytics = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">Conversion</span>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.conversionRate}%</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">↑ 3% vs last period</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.totalReplies > 0 ? 'All time' : 'No data yet'}</p>
             </div>
           </div>
 
@@ -224,117 +225,128 @@ const Analytics = () => {
             {/* Chart */}
             <div className="col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">DM Performance</h3>
-              <div className="h-64 flex items-end gap-4">
-                {chartData.map((data, index) => (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full flex flex-col gap-1 items-center">
-                      <div
-                        className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all hover:from-purple-700 hover:to-purple-500"
-                        style={{ height: `${(data.dms / maxDM) * 180}px` }}
-                        title={`DMs: ${data.dms}`}
-                      ></div>
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{data.day}</span>
+              {chartData.length > 0 ? (
+                <>
+                  <div className="h-64 flex items-end gap-4">
+                    {chartData.map((data, index) => (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                        <div className="w-full flex flex-col gap-1 items-center">
+                          <div
+                            className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all hover:from-purple-700 hover:to-purple-500"
+                            style={{ height: `${(data.dms / maxDM) * 180}px` }}
+                            title={`DMs: ${data.dms}`}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{data.day}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-center gap-6 mt-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-500 rounded"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">DMs Sent</span>
+                  <div className="flex items-center justify-center gap-6 mt-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">DMs Sent</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded"></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Replies</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-pink-500 rounded"></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Leads</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                  <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p className="text-sm font-medium">No performance data yet</p>
+                  <p className="text-xs mt-1">Chart will appear once your automations start sending DMs</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Replies</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-pink-500 rounded"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Leads</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Funnel */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Conversion Funnel</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Comments</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalDMs * 3}</span>
+              {stats.totalDMs > 0 ? (
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">DMs Sent</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalDMs}</span>
+                    </div>
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: '100%' }}></div>
+                    </div>
                   </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Replies</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalReplies}</span>
+                    </div>
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${stats.totalDMs > 0 ? (stats.totalReplies / stats.totalDMs * 100) : 0}%` }}></div>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">DMs Sent</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalDMs}</span>
-                  </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: '66%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Replies</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalReplies}</span>
-                  </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: '33%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Leads Captured</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalLeads}</span>
-                  </div>
-                  <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-pink-500 rounded-full" style={{ width: '15%' }}></div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Leads Captured</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalLeads}</span>
+                    </div>
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-pink-500 rounded-full" style={{ width: `${stats.totalDMs > 0 ? (stats.totalLeads / stats.totalDMs * 100) : 0}%` }}></div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400 dark:text-gray-500">
+                  <p className="text-sm">No funnel data yet</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Top Keywords */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm mt-8">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Top Performing Keywords</h3>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">KEYWORD</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">DMs SENT</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">REPLIES</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">REPLY RATE</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">TREND</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topKeywords.map((kw, index) => (
-                  <tr key={index} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="py-4 px-4">
-                      <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-sm font-medium">
-                        {kw.keyword}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-gray-900 dark:text-white font-medium">{kw.dms}</td>
-                    <td className="py-4 px-4 text-gray-900 dark:text-white font-medium">{kw.replies}</td>
-                    <td className="py-4 px-4">
-                      <span className={`font-medium ${
-                        parseFloat(kw.rate) >= 45 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
-                      }`}>
-                        {kw.rate}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-green-600 dark:text-green-400">↑ {Math.floor(Math.random() * 20) + 5}%</span>
-                    </td>
+            {topKeywords.length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">KEYWORD</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">DMs SENT</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">REPLIES</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">REPLY RATE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {topKeywords.map((kw, index) => (
+                    <tr key={index} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="py-4 px-4">
+                        <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-sm font-medium">
+                          {kw.keyword}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-gray-900 dark:text-white font-medium">{kw.dms}</td>
+                      <td className="py-4 px-4 text-gray-900 dark:text-white font-medium">{kw.replies}</td>
+                      <td className="py-4 px-4">
+                        <span className={`font-medium ${
+                          parseFloat(kw.rate) >= 45 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {kw.rate}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                <p className="text-sm">No keyword data yet. Keywords will appear here once your automations start matching comments.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

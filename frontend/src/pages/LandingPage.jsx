@@ -77,7 +77,7 @@ const LandingPage = () => {
   const faqs = [
     {
       question: 'Will my Instagram account get blocked?',
-      answer: 'No. Replyflows is a verified Meta Business Partner. We use official Instagram APIs only - no scraping, no automation hacks. Your account is 100% safe.'
+      answer: 'No. Replyflows uses official Instagram APIs only - no scraping, no automation hacks. Your account is 100% safe.'
     },
     {
       question: 'Will the DMs sound robotic?',
@@ -308,15 +308,12 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 text-center lg:text-left">
-              {/* Meta Business Partner Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-blue-700 text-sm font-medium mb-6">
-                <svg className="w-5 h-5" viewBox="0 0 100 100" fill="none">
-                  <path
-                    d="M28.5 25C18 25 10 35 10 50C10 65 18 75 28.5 75C35 75 40 71 50 55C60 71 65 75 71.5 75C82 75 90 65 90 50C90 35 82 25 71.5 25C65 25 60 29 50 45C40 29 35 25 28.5 25ZM28.5 35C33 35 37 39 45 52L50 60L55 52C63 39 67 35 71.5 35C76 35 80 41 80 50C80 59 76 65 71.5 65C67 65 63 61 55 48L50 40L45 48C37 61 33 65 28.5 65C24 65 20 59 20 50C20 41 24 35 28.5 35Z"
-                    fill="#0080FB"
-                  />
+              {/* Official API Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-full text-purple-700 text-sm font-medium mb-6">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Meta Business Partner
+                Built on Official Instagram APIs
               </div>
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Automate Your Instagram DMs &
@@ -406,15 +403,14 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Stats Bar - Squeezed */}
+      {/* Value Proposition Bar */}
       <section className="py-8 bg-gray-50 border-y border-gray-100">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             {[
-              { value: '10M+', label: 'DMs Automated' },
-              { value: '5,000+', label: 'Active Users' },
-              { value: '47%', label: 'Avg Reply Rate' },
-              { value: '4.9/5', label: 'User Rating' }
+              { value: 'Instant', label: 'DM Delivery' },
+              { value: '2 Min', label: 'Setup Time' },
+              { value: 'Free', label: 'To Get Started' }
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
@@ -706,7 +702,7 @@ const LandingPage = () => {
                 Ready to Automate Your Instagram DMs?
               </h2>
               <p className="text-xl text-purple-100 mb-8 max-w-2xl mx-auto">
-                Join thousands of creators who grow their business on autopilot with Replyflows.
+                Join creators who automate their Instagram DMs and grow on autopilot with Replyflows.
               </p>
               <button
                 onClick={() => goTo('/register')}
@@ -734,15 +730,11 @@ const LandingPage = () => {
               <p className="text-gray-600 text-sm mt-3">
                 Automate your Instagram DMs and turn comments into customers.
               </p>
-              {/* Meta Business Partner */}
               <div className="flex items-center gap-2 mt-4 text-sm text-gray-500">
-                <svg className="w-4 h-4" viewBox="0 0 100 100" fill="none">
-                  <path
-                    d="M28.5 25C18 25 10 35 10 50C10 65 18 75 28.5 75C35 75 40 71 50 55C60 71 65 75 71.5 75C82 75 90 65 90 50C90 35 82 25 71.5 25C65 25 60 29 50 45C40 29 35 25 28.5 25ZM28.5 35C33 35 37 39 45 52L50 60L55 52C63 39 67 35 71.5 35C76 35 80 41 80 50C80 59 76 65 71.5 65C67 65 63 61 55 48L50 40L45 48C37 61 33 65 28.5 65C24 65 20 59 20 50C20 41 24 35 28.5 35Z"
-                    fill="#0080FB"
-                  />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Meta Business Partner
+                Official Instagram APIs
               </div>
             </div>
             <div>

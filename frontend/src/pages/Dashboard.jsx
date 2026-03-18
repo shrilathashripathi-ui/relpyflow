@@ -42,8 +42,8 @@ const Dashboard = () => {
       setAutomations(automationsList);
 
       const totalDmsSent = automationsList.reduce((sum, a) => sum + (a.dmsSentCount || 0), 0);
-      const replies = Math.floor(totalDmsSent * 0.47);
-      const leads = Math.floor(totalDmsSent * 0.15);
+      const replies = automationsList.reduce((sum, a) => sum + (a.repliesCount || 0), 0);
+      const leads = automationsList.reduce((sum, a) => sum + (a.leadsCount || 0), 0);
 
       setStats({
         messagesSent: totalDmsSent,
@@ -169,7 +169,7 @@ const Dashboard = () => {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">DMs Sent</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.messagesSent}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 12% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.messagesSent > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
@@ -182,7 +182,7 @@ const Dashboard = () => {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Replies</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.replies}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 8% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.replies > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
@@ -195,7 +195,7 @@ const Dashboard = () => {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Leads Captured</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.leads}</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 23% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.leads > 0 ? 'All time' : 'No data yet'}</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
@@ -208,7 +208,7 @@ const Dashboard = () => {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Reply Rate</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.replyRate}%</p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">&uarr; 5% from last week</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{stats.messagesSent > 0 ? 'All time' : 'No data yet'}</p>
             </div>
           </div>
 
