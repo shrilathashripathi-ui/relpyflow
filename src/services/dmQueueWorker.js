@@ -1523,7 +1523,7 @@ class DMQueueWorker {
         if (errorMsg.includes('rate') || errorMsg.includes('limit') || errorMsg.includes('429')) errorType = 'RATE_LIMITED';
         if (errorMsg.includes('block') || errorMsg.includes('ACTION_BLOCKED')) errorType = 'ACTION_BLOCKED';
 
-        // Check if this is a permanent failure (private reply already sent, or comment too old)
+        // Check if this is a permanent failure (private reply already sent, comment too old, etc.)
         const isPermanentFailure =
           errorMsg.includes('already replied') ||
           errorMsg.includes('already been replied') ||
@@ -1532,8 +1532,12 @@ class DMQueueWorker {
           errorMsg.includes('does not exist') ||
           errorMsg.includes('comment has been deleted') ||
           errorMsg.includes('Cannot reply to this comment') ||
-          (errorMsg.includes('code: 100') && dm.commentId) ||  // Invalid parameter for private reply
-          (errorMsg.includes('code: 10') && dm.commentId);     // Permission denied on comment
+          errorMsg.includes('too old') ||                        // "comment is too old get a reply" (subcode 2534024)
+          errorMsg.includes('subcode: 2534024') ||               // Comment too old for private reply
+          errorMsg.includes('subcode: 551') ||                   // Message recipient is not in a valid state
+          errorMsg.includes('capability') ||                     // "Application does not have the capability"
+          (errorMsg.includes('code: 100') && dm.commentId) ||    // Invalid parameter for private reply
+          (errorMsg.includes('code: 10') && dm.commentId);       // Permission denied on comment
 
         await this.recordFailure(dm.igAccountId, errorType, {
           source: 'instagram_api',
