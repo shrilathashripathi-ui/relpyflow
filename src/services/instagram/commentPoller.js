@@ -191,6 +191,11 @@ class CommentPoller {
 
       // Filter posts to check
       let postsToCheck;
+      const mediaIds = media.map(item => item.pk?.toString() || item.id?.toString());
+      console.log(`      Media IDs from API: [${mediaIds.join(', ')}]`);
+      console.log(`      Selected media IDs in DB: [${[...allSelectedMediaIds].join(', ')}]`);
+      console.log(`      monitorAllPosts: ${hasMonitorAllPosts}`);
+
       if (hasMonitorAllPosts) {
         // Monitor all posts - check last 3
         postsToCheck = media.slice(0, 3);
@@ -201,10 +206,17 @@ class CommentPoller {
           const mediaId = item.pk?.toString() || item.id?.toString();
           return allSelectedMediaIds.has(mediaId);
         });
-        console.log(`      Monitoring ${postsToCheck.length} selected post(s)`);
+        if (postsToCheck.length === 0) {
+          // ID mismatch — selected IDs don't match API IDs, fall back to all posts
+          console.log(`      ⚠️ Selected IDs don't match any API media IDs — falling back to ALL posts`);
+          postsToCheck = media.slice(0, 3);
+        } else {
+          console.log(`      Monitoring ${postsToCheck.length} selected post(s)`);
+        }
       } else {
-        console.log(`      No posts selected for monitoring`);
-        return;
+        // No selectedMediaIds and no monitorAllPosts — monitor all by default
+        console.log(`      No specific posts selected — monitoring ALL posts (last 3)`);
+        postsToCheck = media.slice(0, 3);
       }
 
       if (postsToCheck.length === 0) {
