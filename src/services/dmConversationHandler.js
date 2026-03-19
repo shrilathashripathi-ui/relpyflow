@@ -338,12 +338,20 @@ async function handleFollowCheck(trigger, account, automation) {
  * Handle email capture
  */
 async function handleEmailCapture(trigger, account, automation, responseText) {
-  // Simple email validation
+  // Normalize spaces around @ and dots, then validate email
+  const normalizedText = responseText.replace(/\s*@\s*/g, '@').replace(/\s*\.\s*/g, '.');
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-  const emailMatch = responseText.match(emailRegex);
+  const emailMatch = normalizedText.match(emailRegex);
 
   if (!emailMatch) {
-    console.log(`[DM Handler] No valid email in response: "${responseText}"`);
+    console.log(`[DM Handler] No valid email in response: "${responseText}" (normalized: "${normalizedText}")`);
+    // Send retry message
+    try {
+      await sendDMViaAccount(account, trigger.commenterIgId,
+        "Hmm, I couldn't detect a valid email address. Could you please send just your email? (e.g. name@gmail.com)");
+    } catch (e) {
+      console.error('Failed to send email retry message:', e.message);
+    }
     return;
   }
 

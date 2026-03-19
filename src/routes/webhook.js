@@ -399,11 +399,21 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
     }
 
   } else if (currentStep === 'waiting_email') {
-    // Check for email in response
+    // Check for email in response - normalize spaces around @ first
+    const normalizedText = responseText.replace(/\s*@\s*/g, '@').replace(/\s*\.\s*/g, '.');
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-    const emailMatch = responseText.match(emailRegex);
+    const emailMatch = normalizedText.match(emailRegex);
 
-    if (!emailMatch) return;
+    if (!emailMatch) {
+      // Send a friendly retry message
+      try {
+        await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId,
+          "Hmm, I couldn't detect a valid email address. Could you please send just your email? (e.g. name@gmail.com)");
+      } catch (e) {
+        console.error('Failed to send email retry message:', e.message);
+      }
+      return;
+    }
 
     // Save lead
     await prisma.lead.create({
@@ -421,10 +431,11 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
       data: { emailCollected: emailMatch[0] }
     });
 
-    // Send final message
+    // Send final message with custom text or default
+    const finalText = automation.finalMessage || (automation.aiCtaUrl ? 'Thanks! Here\'s your link:' : automation.responseMessage);
     const finalMessage = automation.aiCtaUrl
-      ? `Thanks! Here's your link: ${automation.aiCtaUrl}`
-      : automation.responseMessage;
+      ? `${finalText}\n\n${automation.aiCtaUrl}`
+      : finalText;
 
     await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, finalMessage);
 
