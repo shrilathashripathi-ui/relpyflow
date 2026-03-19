@@ -95,6 +95,7 @@ const Leads = () => {
               conversationStep: conversationStep,
               buttonClicked: trigger.buttonClicked,
               linkSent: trigger.linkSent,
+              emailCollected: trigger.emailCollected || null,
               capturedAt: new Date(trigger.createdAt),
               dmScheduledAt: trigger.dmScheduledAt ? new Date(trigger.dmScheduledAt) : null,
               estimatedResponseTime: trigger.estimatedResponseTime
@@ -178,7 +179,7 @@ const Leads = () => {
       ? leads.filter((lead) => selectedLeads.includes(lead.id))
       : filteredLeads;
 
-    const headers = ['Username', 'Comment', 'Keyword', 'Source', 'Status', 'Captured At'];
+    const headers = ['Username', 'Comment', 'Keyword', 'Source', 'Email', 'Status', 'Captured At'];
     const csvContent = [
       headers.join(','),
       ...dataToExport.map((lead) =>
@@ -187,6 +188,7 @@ const Leads = () => {
           `"${(lead.comment || '').replace(/"/g, '""')}"`,
           lead.keyword || '',
           lead.source,
+          lead.emailCollected || '',
           lead.status,
           new Date(lead.capturedAt).toISOString()
         ].join(',')
@@ -523,6 +525,7 @@ const Leads = () => {
                       <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">COMMENT</th>
                       <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">KEYWORD</th>
                       <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">AUTOMATION</th>
+                      <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">EMAIL</th>
                       <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">TIME</th>
                       <th className="py-4 px-6 text-left text-sm font-medium text-gray-500 dark:text-gray-400">STATUS</th>
                     </tr>
@@ -530,7 +533,7 @@ const Leads = () => {
                   <tbody>
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="py-16 text-center">
+                        <td colSpan="8" className="py-16 text-center">
                           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -571,6 +574,13 @@ const Leads = () => {
                           </td>
                           <td className="py-4 px-6">
                             <span className="text-sm text-gray-600 dark:text-gray-400">{lead.source}</span>
+                          </td>
+                          <td className="py-4 px-6">
+                            {lead.emailCollected ? (
+                              <span className="text-sm text-green-600 dark:text-green-400 font-medium">{lead.emailCollected}</span>
+                            ) : (
+                              <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
+                            )}
                           </td>
                           <td className="py-4 px-6 text-gray-500 dark:text-gray-400 text-sm">
                             {formatTimeAgo(lead.capturedAt)}
