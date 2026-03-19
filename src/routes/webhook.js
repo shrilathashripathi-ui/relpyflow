@@ -351,29 +351,52 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
   console.log(`💬 [Webhook] @${trigger.commenterUsername} replied: "${responseText.substring(0, 50)}" (step: ${currentStep})`);
 
   if (currentStep === 'waiting_button') {
-    // User clicked the button / responded positively
-    const positiveResponses = ['yes', 'send', 'link', 'want', 'please', 'sure', 'ok', 'yeah'];
-    const isPositive = positiveResponses.some(word => responseText.toLowerCase().includes(word));
+    // Check if user's reply matches the button text or is a positive response
+    const buttonText = automation.openingButton || 'Send me the link';
+    const responseNorm = responseText.toLowerCase().trim();
+    const buttonNorm = buttonText.toLowerCase().trim();
+    const buttonWords = buttonNorm.split(/\s+/).filter(w => w.length > 2);
+    const matchesButton = buttonWords.some(w => responseNorm.includes(w));
+
+    const positiveResponses = ['yes', 'send', 'link', 'want', 'please', 'sure', 'ok', 'yeah', 'free', 'pdf'];
+    const isPositive = positiveResponses.some(word => responseNorm.includes(word)) || matchesButton || responseNorm.includes(buttonNorm);
 
     if (!isPositive) return;
+
+    console.log(`💬 [Webhook] Button click detected from @${trigger.commenterUsername}`);
 
     await prisma.trigger.update({
       where: { id: trigger.id },
       data: { buttonClicked: true, buttonClickedAt: new Date() }
     });
 
-    // Send the DM with link via Official API
-    if (automation.aiCtaUrl) {
-      const finalMessage = automation.responseMessage + '\n\n' + automation.aiCtaUrl;
-      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, finalMessage);
+    // Follow the multi-step flow: askForFollow → email → final
+    if (automation.askForFollowEnabled) {
+      const followMsg = automation.askForFollowMessage || "Nearly there! Follow me and I'll send you the link right away!";
+      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, followMsg);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'waiting_follow', status: 'waiting_follow' }
+      });
+    } else if (automation.leadCollectionEnabled) {
+      const emailMsg = automation.emailAskMessage || "Drop your email below to get exclusive content!";
+      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, emailMsg);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'waiting_email', status: 'waiting_email' }
+      });
     } else {
-      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, automation.responseMessage);
+      // Send the final message with link
+      const finalMsg = automation.finalMessage ||
+        (automation.aiCtaUrl ? `Here's your link: ${automation.aiCtaUrl}` : automation.responseMessage);
+      const messageWithLink = automation.aiCtaUrl && !finalMsg.includes(automation.aiCtaUrl)
+        ? finalMsg + '\n\n' + automation.aiCtaUrl : finalMsg;
+      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, messageWithLink);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
+      });
     }
-
-    await prisma.trigger.update({
-      where: { id: trigger.id },
-      data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
-    });
 
   } else if (currentStep === 'waiting_email') {
     // Check for email in response

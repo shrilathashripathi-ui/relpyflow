@@ -160,9 +160,9 @@ const Login = () => {
             {!isLogin && (
               <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                 By signing up you agree to the{' '}
-                <a href="#" className="text-purple-600 dark:text-purple-400 hover:underline">Terms</a>
+                <a href="https://api.replyflows.in/terms" target="_blank" rel="noopener noreferrer" className="text-purple-600 dark:text-purple-400 hover:underline">Terms</a>
                 {' '}and{' '}
-                <a href="#" className="text-purple-600 dark:text-purple-400 hover:underline">Privacy Policy</a>
+                <a href="https://api.replyflows.in/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-purple-600 dark:text-purple-400 hover:underline">Privacy Policy</a>
               </p>
             )}
 

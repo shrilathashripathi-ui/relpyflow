@@ -8,8 +8,19 @@
  */
 
 const instagramAPI = new (require('./instagram/instagramAPI'))();
+const officialApi = require('./instagram/officialApiService');
 
 const prisma = require('../config/prisma');
+
+/**
+ * Send a DM using the best available method (Official API preferred)
+ */
+async function sendDMViaAccount(account, recipientIgId, message) {
+  if (account.useOfficialApi && account.accessToken) {
+    return officialApi.sendDM(account.accessToken, account.igUserId, recipientIgId, message);
+  }
+  return instagramAPI.sendDM(account, recipientIgId, message);
+}
 
 // Polling interval in ms (check every 30 seconds)
 const POLL_INTERVAL = 30000;
@@ -204,20 +215,24 @@ async function handleUserResponse(trigger, account, responseText, rawMessage) {
  * Handle button click (user sent message matching button text)
  */
 async function handleButtonClick(trigger, account, automation, responseText) {
-  // Check if the response matches or is similar to the button text
-  const buttonText = automation.askForFollowMessage?.includes('button:')
-    ? automation.askForFollowMessage.split('button:')[1]?.trim()
-    : 'Send me the link';
+  // Use the saved openingButton text from the automation, or a default
+  const buttonText = automation.openingButton || 'Send me the link';
 
   const responseNormalized = responseText.toLowerCase().trim();
   const buttonNormalized = buttonText.toLowerCase().trim();
 
-  // Accept if response contains the button text or is a positive response
+  // Accept if response contains the button text, keywords from it, or a positive response
+  const buttonWords = buttonNormalized.split(/\s+/).filter(w => w.length > 2);
+  const matchesButtonKeyword = buttonWords.some(word => responseNormalized.includes(word));
+
   const isButtonClick = responseNormalized.includes(buttonNormalized) ||
+                        matchesButtonKeyword ||
                         responseNormalized.includes('send') ||
                         responseNormalized.includes('link') ||
                         responseNormalized.includes('yes') ||
                         responseNormalized.includes('want') ||
+                        responseNormalized.includes('free') ||
+                        responseNormalized.includes('pdf') ||
                         responseNormalized === buttonNormalized;
 
   if (!isButtonClick) {
@@ -383,7 +398,7 @@ async function sendFollowRequestMessage(trigger, account, automation) {
     "Nearly there! The link is especially for my followers. Follow me and I'll send you the link right away!";
 
   try {
-    await instagramAPI.sendDM(account, trigger.commenterIgId, message);
+    await sendDMViaAccount(account, trigger.commenterIgId, message);
     console.log(`[DM Handler] Sent follow request to @${trigger.commenterUsername}`);
   } catch (error) {
     console.error('Error sending follow request message:', error);
@@ -394,11 +409,12 @@ async function sendFollowRequestMessage(trigger, account, automation) {
  * Send email capture message
  */
 async function sendEmailCaptureMessage(trigger, account, automation) {
-  const message = automation.leadFields?.emailMessage ||
+  const message = automation.emailAskMessage ||
+    automation.leadFields?.emailMessage ||
     "You got it! Before sharing the link, drop your email below to get exclusive content!";
 
   try {
-    await instagramAPI.sendDM(account, trigger.commenterIgId, message);
+    await sendDMViaAccount(account, trigger.commenterIgId, message);
     console.log(`[DM Handler] Sent email capture request to @${trigger.commenterUsername}`);
   } catch (error) {
     console.error('Error sending email capture message:', error);
@@ -409,18 +425,18 @@ async function sendEmailCaptureMessage(trigger, account, automation) {
  * Send final message with link
  */
 async function sendFinalMessage(trigger, account, automation) {
-  // Build final message with link
-  let message = automation.aiCtaUrl ?
-    `Here's your link: ${automation.aiCtaUrl}` :
-    automation.responseMessage || "Thanks! Here's your link!";
+  // Use the saved finalMessage, fall back to CTA URL or generic
+  let message = automation.finalMessage ||
+    (automation.aiCtaUrl ? `Here's your link: ${automation.aiCtaUrl}` : null) ||
+    "Thanks! Here's your link!";
 
-  // If there's a specific CTA URL, append it
+  // If there's a CTA URL and it's not already in the message, append it
   if (automation.aiCtaUrl && !message.includes(automation.aiCtaUrl)) {
     message += `\n\n${automation.aiCtaUrl}`;
   }
 
   try {
-    await instagramAPI.sendDM(account, trigger.commenterIgId, message);
+    await sendDMViaAccount(account, trigger.commenterIgId, message);
     console.log(`[DM Handler] Sent final message with link to @${trigger.commenterUsername}`);
 
     // Record in DM history

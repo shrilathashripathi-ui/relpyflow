@@ -98,7 +98,7 @@ const CreateAutomation = () => {
 
   // Step 3: DM Flow
   const [openingDmEnabled, setOpeningDmEnabled] = useState(true);
-  const [openingMessage, setOpeningMessage] = useState("Hey there! I'm so happy you're here, thanks so much for your interest 😊\n\nClick below and I'll send you the link in just a sec ✨");
+  const [openingMessage, setOpeningMessage] = useState("Hey there! Thanks so much for your interest 😊\n\nI've got something special for you!");
   const [openingButton, setOpeningButton] = useState('I want my free PDF');
 
   const [askForFollowEnabled, setAskForFollowEnabled] = useState(false);
@@ -527,7 +527,9 @@ const CreateAutomation = () => {
                       <textarea value={openingMessage} onChange={(e) => setOpeningMessage(e.target.value)} rows={4} className="w-full bg-transparent border-none focus:outline-none resize-none text-gray-700 dark:text-gray-300" placeholder="Write your opening message..." />
                     </div>
                     <div className="border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3">
-                      <input type="text" value={openingButton} onChange={(e) => setOpeningButton(e.target.value)} placeholder="Button text" className="w-full bg-transparent border-none focus:outline-none text-gray-700 dark:text-gray-300" />
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Reply keyword (user will type this to continue)</label>
+                      <input type="text" value={openingButton} onChange={(e) => setOpeningButton(e.target.value)} placeholder='e.g. "I want my free PDF"' className="w-full bg-transparent border-none focus:outline-none text-gray-700 dark:text-gray-300" />
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This text will be appended to your DM as a reply prompt</p>
                     </div>
                   </>
                 )}

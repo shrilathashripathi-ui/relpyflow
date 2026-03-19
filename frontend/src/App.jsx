@@ -9,8 +9,6 @@ import ConnectInstagram from './pages/ConnectInstagram';
 import CreateAutomation from './pages/CreateAutomation';
 import Automations from './pages/Automations';
 import AutomationLeads from './pages/AutomationLeads';
-import BasicAutomation from './pages/BasicAutomation';
-import Sequences from './pages/Sequences';
 import Pricing from './pages/Pricing';
 import Contacts from './pages/Contacts';
 import Settings from './pages/Settings';
@@ -107,22 +105,6 @@ function App() {
           element={
             <ProtectedRoute>
               <AutomationLeads />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/basic-automation"
-          element={
-            <ProtectedRoute>
-              <BasicAutomation />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sequences"
-          element={
-            <ProtectedRoute>
-              <Sequences />
             </ProtectedRoute>
           }
         />

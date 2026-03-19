@@ -359,6 +359,14 @@ model Automation {
   commentReplyMessage String?   @map("comment_reply_message") // Public reply to comment
   commentReplies      String[]  @default([]) @map("comment_replies") // Array of random comment replies
 
+  // DM Flow options
+  openingButton       String?   @map("opening_button") // Reply keyword shown to user (e.g. "I want my free PDF")
+  openingDmEnabled    Boolean   @default(true) @map("opening_dm_enabled")
+  finalMessage        String?   @map("final_message") // Final message with link
+  followUpEnabled     Boolean   @default(false) @map("follow_up_enabled")
+  followUpMessage     String?   @map("follow_up_message")
+  emailAskMessage     String?   @map("email_ask_message")
+
   // Selected posts/reels to monitor (if empty, monitors all)
   selectedMediaIds    String[]  @default([]) @map("selected_media_ids") // Array of media IDs to monitor
   monitorAllPosts     Boolean   @default(false) @map("monitor_all_posts") // If true, monitors all posts

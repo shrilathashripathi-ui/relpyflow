@@ -1451,13 +1451,38 @@ class DMQueueWorker {
           data: { status: 'processing', processedAt: new Date(), sendAttemptId }
         });
 
+        // Look up automation to check for multi-step flow
+        let automation = null;
+        let hasMultiStepFlow = false;
+        if (dm.commentId) {
+          const trigger = await prisma.trigger.findFirst({
+            where: { commentId: dm.commentId },
+            include: { automation: true }
+          });
+          automation = trigger?.automation;
+          if (automation) {
+            hasMultiStepFlow = !!(automation.openingButton && (
+              automation.askForFollowEnabled ||
+              automation.leadCollectionEnabled ||
+              automation.aiCtaUrl ||
+              automation.finalMessage
+            ));
+          }
+        }
+
+        // If multi-step flow, append reply instructions to the opening DM
+        let messageToSend = dm.messageToSend;
+        if (hasMultiStepFlow && automation?.openingButton) {
+          messageToSend = dm.messageToSend + `\n\nReply "${automation.openingButton}" to get started`;
+        }
+
         // Send via Official API (with latency tracking)
         const sendStart = Date.now();
         const result = await officialApi.sendDM(
           account.accessToken,
           account.igUserId,
           dm.recipientIgId,
-          dm.messageToSend,
+          messageToSend,
           dm.commentId  // Pass commentId for Private Reply (comment-triggered DMs)
         );
         const sendLatencyMs = Date.now() - sendStart;
@@ -1469,11 +1494,17 @@ class DMQueueWorker {
             data: { status: 'sent', sentAt: new Date() }
           });
 
-          // Update trigger status
+          // Update trigger status — set to waiting_button if multi-step flow
           if (dm.commentId) {
+            const triggerStatus = hasMultiStepFlow ? 'waiting_button' : 'dm_sent';
             await prisma.trigger.updateMany({
               where: { commentId: dm.commentId },
-              data: { dmSent: true, dmSentAt: new Date(), status: 'dm_sent' }
+              data: {
+                dmSent: true,
+                dmSentAt: new Date(),
+                status: triggerStatus,
+                conversationStep: hasMultiStepFlow ? 'waiting_button' : null
+              }
             });
           }
 
