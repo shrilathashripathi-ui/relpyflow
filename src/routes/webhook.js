@@ -343,6 +343,9 @@ async function handleMessageChangeEvent(igUserId, messageData) {
 
 /**
  * Handle conversation reply (user responding in an active flow)
+ *
+ * Flow: waiting_button → waiting_follow → waiting_email → link_sent
+ * Each step is optional based on automation settings.
  */
 async function handleConversationReply(account, trigger, responseText, senderIgId) {
   const automation = trigger.automation;
@@ -370,38 +373,32 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
       data: { buttonClicked: true, buttonClickedAt: new Date() }
     });
 
-    // Follow the multi-step flow: askForFollow → email → final
-    if (automation.askForFollowEnabled) {
-      const followMsg = automation.askForFollowMessage || "Nearly there! Follow me and I'll send you the link right away!";
-      // Send follow message with a "Follow" URL button
-      try {
-        await officialApi.sendGenericTemplate(
-          account.accessToken, account.igUserId, senderIgId,
-          followMsg,
-          [{ type: 'web_url', url: `https://www.instagram.com/${account.username}/`, title: 'Follow' }]
-        );
-      } catch (e) {
-        await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, followMsg);
-      }
-      await prisma.trigger.update({
-        where: { id: trigger.id },
-        data: { conversationStep: 'waiting_follow', status: 'waiting_follow' }
-      });
-    } else if (automation.leadCollectionEnabled) {
-      const emailMsg = automation.emailAskMessage || "Drop your email below to get exclusive content!";
-      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, emailMsg);
-      await prisma.trigger.update({
-        where: { id: trigger.id },
-        data: { conversationStep: 'waiting_email', status: 'waiting_email' }
-      });
-    } else {
-      // Send the final message with link as a button
-      await sendFinalLinkMessage(account, senderIgId, automation);
-      await prisma.trigger.update({
-        where: { id: trigger.id },
-        data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
-      });
+    // Advance to next step in flow
+    await advanceToNextStep(account, trigger, automation, senderIgId, 'button_done');
+
+  } else if (currentStep === 'waiting_follow') {
+    // User says they're following — check "I'm following" click or similar text
+    const responseNorm = responseText.toLowerCase().trim();
+    const followPhrases = ['following', 'follow', 'done', 'followed', "i'm following", 'im following'];
+    const claimsFollowing = followPhrases.some(p => responseNorm.includes(p));
+
+    if (!claimsFollowing) return;
+
+    console.log(`💬 [Webhook] @${trigger.commenterUsername} claims they're following — verifying...`);
+
+    // Check if they actually follow
+    const isFollowing = await officialApi.checkFollower(account.accessToken, account.igUserId, senderIgId);
+
+    if (!isFollowing) {
+      // Not following — re-ask with Follow button + "I'm following" quick reply
+      console.log(`❌ [Webhook] @${trigger.commenterUsername} is NOT following yet, re-asking`);
+      await sendFollowMessage(account, senderIgId, automation);
+      return;
     }
+
+    // Confirmed follower!
+    console.log(`✅ [Webhook] @${trigger.commenterUsername} is now following!`);
+    await advanceToNextStep(account, trigger, automation, senderIgId, 'follow_done');
 
   } else if (currentStep === 'waiting_email') {
     // Check for email in response - normalize spaces around @ first
@@ -410,7 +407,6 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
     const emailMatch = normalizedText.match(emailRegex);
 
     if (!emailMatch) {
-      // Send a friendly retry message
       try {
         await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId,
           "Hmm, I couldn't detect a valid email address. Could you please send just your email? (e.g. name@gmail.com)");
@@ -420,7 +416,7 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
       return;
     }
 
-    // Save lead
+    // Save lead with email
     await prisma.lead.create({
       data: {
         automationId: trigger.automationId,
@@ -436,13 +432,112 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
       data: { emailCollected: emailMatch[0] }
     });
 
-    // Send final message with link as a button
-    await sendFinalLinkMessage(account, senderIgId, automation);
+    // Email collected → advance to final link
+    await advanceToNextStep(account, trigger, automation, senderIgId, 'email_done');
+  }
+}
 
+/**
+ * Advance to the next step in the conversation flow.
+ * Called after a step completes. Determines what comes next based on automation settings.
+ *
+ * completedStep values: 'button_done', 'follow_done', 'email_done'
+ */
+async function advanceToNextStep(account, trigger, automation, senderIgId, completedStep) {
+  // After button click → check follow (if enabled) → ask email (if enabled) → send link
+  if (completedStep === 'button_done') {
+    if (automation.askForFollowEnabled) {
+      // Check if lead already follows before asking
+      const alreadyFollowing = await officialApi.checkFollower(account.accessToken, account.igUserId, senderIgId);
+      if (alreadyFollowing) {
+        console.log(`✅ [Webhook] @${trigger.commenterUsername} already follows — skipping follow step`);
+        return advanceToNextStep(account, trigger, automation, senderIgId, 'follow_done');
+      }
+      // Not following — send follow message with buttons
+      await sendFollowMessage(account, senderIgId, automation);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'waiting_follow', status: 'waiting_follow' }
+      });
+      return;
+    }
+    // No follow step — check email
+    if (automation.leadCollectionEnabled) {
+      const emailMsg = automation.emailAskMessage || "Drop your email below to get exclusive content!";
+      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, emailMsg);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'waiting_email', status: 'waiting_email' }
+      });
+      return;
+    }
+    // No follow, no email — send link directly
+    await sendFinalLinkMessage(account, senderIgId, automation);
     await prisma.trigger.update({
       where: { id: trigger.id },
       data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
     });
+    return;
+  }
+
+  if (completedStep === 'follow_done') {
+    // After follow confirmed → ask email (if enabled) → send link
+    if (automation.leadCollectionEnabled) {
+      const emailMsg = automation.emailAskMessage || "Drop your email below to get exclusive content!";
+      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, emailMsg);
+      await prisma.trigger.update({
+        where: { id: trigger.id },
+        data: { conversationStep: 'waiting_email', status: 'waiting_email' }
+      });
+      return;
+    }
+    // No email step — send link directly
+    await sendFinalLinkMessage(account, senderIgId, automation);
+    await prisma.trigger.update({
+      where: { id: trigger.id },
+      data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
+    });
+    return;
+  }
+
+  if (completedStep === 'email_done') {
+    // After email collected → send final link
+    await sendFinalLinkMessage(account, senderIgId, automation);
+    await prisma.trigger.update({
+      where: { id: trigger.id },
+      data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
+    });
+    return;
+  }
+}
+
+/**
+ * Send the follow message with a Follow URL button + "I'm following" quick reply
+ */
+async function sendFollowMessage(account, recipientId, automation) {
+  const followMsg = automation.askForFollowMessage || "Nearly there! The link is especially for my followers ✨\n\nFollow me and I'll send it right away!";
+  const profileUrl = `https://www.instagram.com/${account.username}/`;
+
+  // Send the follow message with Follow URL button
+  try {
+    await officialApi.sendGenericTemplate(
+      account.accessToken, account.igUserId, recipientId,
+      followMsg,
+      [{ type: 'web_url', url: profileUrl, title: 'Follow' }]
+    );
+  } catch (e) {
+    await officialApi.sendDM(account.accessToken, account.igUserId, recipientId, followMsg + '\n\n' + profileUrl);
+  }
+
+  // Send "I'm following" quick reply button
+  try {
+    await officialApi.sendQuickReply(
+      account.accessToken, account.igUserId, recipientId,
+      'Tap below once you\'ve followed 👇',
+      [{ title: "I'm following", payload: 'confirm_follow' }]
+    );
+  } catch (e) {
+    console.warn('⚠️ Quick reply for follow confirmation failed:', e.message);
   }
 }
 

@@ -1470,35 +1470,36 @@ class DMQueueWorker {
           }
         }
 
-        // Send opening DM (plain text via Private Reply)
+        // Send opening DM
         let messageToSend = dm.messageToSend;
-
-        // Send via Official API (with latency tracking)
         const sendStart = Date.now();
-        const result = await officialApi.sendDM(
+        let result;
+
+        // First: send Private Reply to establish the conversation (required for comment-triggered DMs)
+        result = await officialApi.sendDM(
           account.accessToken,
           account.igUserId,
           dm.recipientIgId,
           messageToSend,
-          dm.commentId  // Pass commentId for Private Reply (comment-triggered DMs)
+          dm.commentId
         );
-        const sendLatencyMs = Date.now() - sendStart;
 
-        // If multi-step flow, send follow-up with Quick Reply button
+        // Then: if multi-step flow, send the button as a Generic Template (same message card style)
         if (result.success && hasMultiStepFlow && automation?.openingButton) {
           try {
-            await officialApi.sendQuickReply(
+            await officialApi.sendGenericTemplate(
               account.accessToken,
               account.igUserId,
               dm.recipientIgId,
               `Tap below to get started 👇`,
-              [{ title: automation.openingButton, payload: 'button_click' }]
+              [{ type: 'postback', title: automation.openingButton, payload: 'button_click' }]
             );
-            console.log(`✅ [DMWorker] Quick reply button "${automation.openingButton}" sent`);
-          } catch (qrErr) {
-            console.warn(`⚠️ [DMWorker] Quick reply failed, user can still type manually:`, qrErr.message);
+            console.log(`✅ [DMWorker] Button "${automation.openingButton}" sent as template card`);
+          } catch (templateErr) {
+            console.warn(`⚠️ [DMWorker] Template button failed, user can type manually:`, templateErr.message);
           }
         }
+        const sendLatencyMs = Date.now() - sendStart;
 
         if (result.success) {
           // Mark as sent

@@ -281,6 +281,35 @@ class OfficialInstagramApiService {
   }
 
   /**
+   * Check if a user follows the business account
+   * Uses the /me/followers endpoint (requires instagram_business_basic)
+   * Returns true/false, falls back to false if API doesn't support it
+   */
+  async checkFollower(accessToken, igUserId, followerIgId) {
+    console.log(`🔍 [Official API] Checking if ${followerIgId} follows ${igUserId}`);
+    try {
+      // Try to get the follower list and check if the user is in it
+      const response = await axios.get(
+        `${GRAPH_API_BASE}/${igUserId}/followers`,
+        {
+          params: {
+            access_token: accessToken,
+            limit: 100
+          }
+        }
+      );
+      const followers = response.data?.data || [];
+      const isFollowing = followers.some(f => f.id === followerIgId);
+      console.log(`✅ [Official API] Follower check: ${isFollowing ? 'YES' : 'NO'}`);
+      return isFollowing;
+    } catch (error) {
+      // If endpoint not available, try alternative approach
+      console.warn(`⚠️ [Official API] Follower check failed, assuming not following:`, error.response?.data?.error?.message || error.message);
+      return false;
+    }
+  }
+
+  /**
    * Send an ice breaker / generic template message
    * For structured messages with quick reply buttons
    */
@@ -319,7 +348,6 @@ class OfficialInstagramApiService {
       throw error;
     }
   }
-}
 
   /**
    * Send a Generic Template message with buttons
