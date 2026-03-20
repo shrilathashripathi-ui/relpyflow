@@ -11,6 +11,7 @@ model User {
   id                        String    @id @default(uuid())
   email                     String    @unique
   name                      String?
+  phone                     String?
   passwordHash              String?   @map("password_hash")
   emailVerified             Boolean   @default(false) @map("email_verified")
   verificationToken         String?   @map("verification_token")

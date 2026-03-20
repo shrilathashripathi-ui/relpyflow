@@ -9,7 +9,7 @@ const prisma = require('../config/prisma');
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, phone } = req.body;
 
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) {
@@ -19,8 +19,8 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: { email, passwordHash, name },
-      select: { id: true, email: true, name: true },
+      data: { email, passwordHash, name, phone: phone || null },
+      select: { id: true, email: true, name: true, phone: true },
     });
 
     const token = generateToken(user.id);
@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user.id);
 
     res.json({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
       token,
     });
   } catch (error) {
@@ -66,6 +66,7 @@ router.get('/profile', protect, async (req, res) => {
         id: true,
         email: true,
         name: true,
+        phone: true,
         subscriptionPlan: true,
         subscriptionStatus: true,
         trialEndsAt: true,
