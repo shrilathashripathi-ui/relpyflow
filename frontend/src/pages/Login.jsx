@@ -7,6 +7,9 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLogin, setIsLogin] = useState(location.pathname !== '/register');
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,7 +17,9 @@ const Login = () => {
     phone: '',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -22,6 +27,14 @@ const Login = () => {
       navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
 
   const handleChange = (e) => {
     setFormData({
@@ -34,6 +47,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -52,16 +66,151 @@ const Login = () => {
         });
       }
 
+      const data = response.data;
+
+      // If verification required, show OTP screen
+      if (data.requiresVerification) {
+        setOtpEmail(data.email || formData.email);
+        setShowOTP(true);
+        setResendTimer(30);
+        setSuccess(data.message || 'OTP sent to your email');
+        return;
+      }
+
+      // Normal login success
+      const { token, user } = data;
+      setToken(token);
+      setUser(user);
+      navigate('/dashboard');
+    } catch (err) {
+      const data = err.response?.data;
+      // 403 = email not verified, show OTP screen
+      if (err.response?.status === 403 && data?.requiresVerification) {
+        setOtpEmail(data.email || formData.email);
+        setShowOTP(true);
+        setResendTimer(30);
+        setSuccess(data.message || 'OTP sent to your email');
+        return;
+      }
+      setError(data?.error || data?.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await authAPI.verifyOTP({ email: otpEmail, otp });
       const { token, user } = response.data;
       setToken(token);
       setUser(user);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      setError(err.response?.data?.error || 'Invalid OTP');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleResendOTP = async () => {
+    if (resendTimer > 0) return;
+    setError('');
+    setSuccess('');
+
+    try {
+      await authAPI.resendOTP({ email: otpEmail });
+      setResendTimer(30);
+      setSuccess('A new OTP has been sent to your email');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to resend OTP');
+    }
+  };
+
+  // OTP Verification Screen
+  if (showOTP) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Verify Email
+            </h2>
+            <p className="mt-2 text-gray-500 dark:text-gray-400">
+              Enter the 6-digit code sent to <strong className="text-gray-700 dark:text-gray-200">{otpEmail}</strong>
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+            <form onSubmit={handleVerifyOTP} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Verification Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '')); setError(''); }}
+                  required
+                  autoFocus
+                  className="w-full px-4 py-4 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-center text-2xl tracking-widest font-bold dark:bg-gray-700 dark:text-white"
+                  placeholder="000000"
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-xl text-sm">
+                  {success}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || otp.length !== 6}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {loading ? 'Verifying...' : 'Verify Email'}
+              </button>
+            </form>
+
+            <div className="mt-4 text-center">
+              <button
+                onClick={handleResendOTP}
+                disabled={resendTimer > 0}
+                className="text-sm text-purple-600 dark:text-purple-400 hover:underline disabled:text-gray-400 disabled:no-underline"
+              >
+                {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend OTP'}
+              </button>
+            </div>
+
+            <div className="mt-2 text-center">
+              <button
+                onClick={() => { setShowOTP(false); setOtp(''); setError(''); setSuccess(''); }}
+                className="text-sm text-gray-500 dark:text-gray-400 hover:underline"
+              >
+                Back to {isLogin ? 'login' : 'signup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
