@@ -1470,11 +1470,8 @@ class DMQueueWorker {
           }
         }
 
-        // If multi-step flow, append reply instructions to the opening DM
+        // Send opening DM (plain text via Private Reply)
         let messageToSend = dm.messageToSend;
-        if (hasMultiStepFlow && automation?.openingButton) {
-          messageToSend = dm.messageToSend + `\n\nReply "${automation.openingButton}" to get started`;
-        }
 
         // Send via Official API (with latency tracking)
         const sendStart = Date.now();
@@ -1486,6 +1483,22 @@ class DMQueueWorker {
           dm.commentId  // Pass commentId for Private Reply (comment-triggered DMs)
         );
         const sendLatencyMs = Date.now() - sendStart;
+
+        // If multi-step flow, send follow-up with Quick Reply button
+        if (result.success && hasMultiStepFlow && automation?.openingButton) {
+          try {
+            await officialApi.sendQuickReply(
+              account.accessToken,
+              account.igUserId,
+              dm.recipientIgId,
+              `Tap below to get started 👇`,
+              [{ title: automation.openingButton, payload: 'button_click' }]
+            );
+            console.log(`✅ [DMWorker] Quick reply button "${automation.openingButton}" sent`);
+          } catch (qrErr) {
+            console.warn(`⚠️ [DMWorker] Quick reply failed, user can still type manually:`, qrErr.message);
+          }
+        }
 
         if (result.success) {
           // Mark as sent

@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { instagramAPI, subscriptionAPI, authAPI } from '../utils/api';
 import api from '../utils/api';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(location.state?.message || '');
   const [error, setError] = useState('');
 
   // General settings state

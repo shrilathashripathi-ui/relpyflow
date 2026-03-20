@@ -195,6 +195,10 @@ const CreateAutomation = () => {
         const accountToUse = savedAccount || accountsList[0];
         setSelectedAccount(accountToUse);
         fetchMedia(accountToUse.id);
+      } else {
+        // No Instagram account connected — redirect to settings
+        navigate('/settings', { state: { message: 'Please connect your Instagram account first to create an automation.' } });
+        return;
       }
 
       try {

@@ -373,7 +373,16 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
     // Follow the multi-step flow: askForFollow → email → final
     if (automation.askForFollowEnabled) {
       const followMsg = automation.askForFollowMessage || "Nearly there! Follow me and I'll send you the link right away!";
-      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, followMsg);
+      // Send follow message with a "Follow" URL button
+      try {
+        await officialApi.sendGenericTemplate(
+          account.accessToken, account.igUserId, senderIgId,
+          followMsg,
+          [{ type: 'web_url', url: `https://www.instagram.com/${account.username}/`, title: 'Follow' }]
+        );
+      } catch (e) {
+        await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, followMsg);
+      }
       await prisma.trigger.update({
         where: { id: trigger.id },
         data: { conversationStep: 'waiting_follow', status: 'waiting_follow' }
@@ -386,12 +395,8 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
         data: { conversationStep: 'waiting_email', status: 'waiting_email' }
       });
     } else {
-      // Send the final message with link
-      const finalMsg = automation.finalMessage ||
-        (automation.aiCtaUrl ? `Here's your link: ${automation.aiCtaUrl}` : automation.responseMessage);
-      const messageWithLink = automation.aiCtaUrl && !finalMsg.includes(automation.aiCtaUrl)
-        ? finalMsg + '\n\n' + automation.aiCtaUrl : finalMsg;
-      await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, messageWithLink);
+      // Send the final message with link as a button
+      await sendFinalLinkMessage(account, senderIgId, automation);
       await prisma.trigger.update({
         where: { id: trigger.id },
         data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
@@ -431,19 +436,39 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
       data: { emailCollected: emailMatch[0] }
     });
 
-    // Send final message with custom text or default
-    const finalText = automation.finalMessage || (automation.aiCtaUrl ? 'Thanks! Here\'s your link:' : automation.responseMessage);
-    const finalMessage = automation.aiCtaUrl
-      ? `${finalText}\n\n${automation.aiCtaUrl}`
-      : finalText;
-
-    await officialApi.sendDM(account.accessToken, account.igUserId, senderIgId, finalMessage);
+    // Send final message with link as a button
+    await sendFinalLinkMessage(account, senderIgId, automation);
 
     await prisma.trigger.update({
       where: { id: trigger.id },
       data: { conversationStep: 'link_sent', status: 'completed', linkSent: true, linkSentAt: new Date() }
     });
   }
+}
+
+/**
+ * Send the final link message as a Generic Template with button
+ */
+async function sendFinalLinkMessage(account, recipientId, automation) {
+  const finalText = automation.finalMessage || 'Here\'s your link!';
+  const linkUrl = automation.aiCtaUrl;
+  const linkLabel = automation.aiCtaLabel || 'Open Link';
+
+  if (linkUrl) {
+    try {
+      await officialApi.sendGenericTemplate(
+        account.accessToken, account.igUserId, recipientId,
+        finalText,
+        [{ type: 'web_url', url: linkUrl, title: linkLabel }]
+      );
+      return;
+    } catch (e) {
+      console.warn('⚠️ Generic template failed, falling back to plain text:', e.message);
+    }
+  }
+  // Fallback: plain text with URL
+  const message = linkUrl ? `${finalText}\n\n${linkUrl}` : finalText;
+  await officialApi.sendDM(account.accessToken, account.igUserId, recipientId, message);
 }
 
 /**

@@ -321,4 +321,55 @@ class OfficialInstagramApiService {
   }
 }
 
+  /**
+   * Send a Generic Template message with buttons
+   * Used for: link buttons ("Grab my Copy!"), follow buttons, CTA buttons
+   */
+  async sendGenericTemplate(accessToken, igUserId, recipientId, title, buttons, subtitle = null) {
+    console.log(`📤 [Official API] Sending generic template to ${recipientId}`);
+
+    const element = { title };
+    if (subtitle) element.subtitle = subtitle;
+    element.buttons = buttons.map(btn => {
+      if (btn.type === 'web_url') {
+        return { type: 'web_url', url: btn.url, title: btn.title };
+      }
+      return { type: 'postback', title: btn.title, payload: btn.payload || btn.title };
+    });
+
+    try {
+      const response = await axios.post(
+        `${GRAPH_API_BASE}/${igUserId}/messages`,
+        {
+          recipient: { id: recipientId },
+          message: {
+            attachment: {
+              type: 'template',
+              payload: {
+                template_type: 'generic',
+                elements: [element]
+              }
+            }
+          }
+        },
+        {
+          params: { access_token: accessToken },
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      console.log('✅ [Official API] Generic template sent');
+      return { success: true, data: response.data };
+    } catch (error) {
+      const errorData = error.response?.data?.error || {};
+      console.error(`❌ [Official API] Generic template failed:`, errorData.message || error.message);
+      // Fall back to plain text with URL
+      const fallbackText = subtitle ? `${title}\n\n${subtitle}` : title;
+      const urlBtn = buttons.find(b => b.type === 'web_url');
+      const text = urlBtn ? `${fallbackText}\n\n${urlBtn.url}` : fallbackText;
+      return this.sendDM(accessToken, igUserId, recipientId, text);
+    }
+  }
+}
+
 module.exports = new OfficialInstagramApiService();

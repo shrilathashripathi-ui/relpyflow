@@ -163,6 +163,7 @@ router.post('/', protect, async (req, res) => {
         aiContext: aiContext || null,
         aiProductInfo: aiProductInfo || null,
         aiCtaUrl: aiCtaUrl || (links && links.length > 0 ? links[0].url : null),
+        aiCtaLabel: (links && links.length > 0 ? links[0].label : null),
         // Webhook
         webhookEnabled: webhookEnabled || false,
         webhookUrl: webhookUrl || null,
@@ -240,7 +241,8 @@ router.put('/:id', protect, async (req, res) => {
       followUpMessage,
       skipNonFollowers,
       leadCollectionEnabled,
-      leadFields
+      leadFields,
+      links
     } = req.body;
 
     const automation = await prisma.automation.findFirst({
@@ -283,6 +285,8 @@ router.put('/:id', protect, async (req, res) => {
         skipNonFollowers: skipNonFollowers || false,
         leadCollectionEnabled: leadCollectionEnabled || askForEmailEnabled || false,
         leadFields: leadFields || (askForEmailEnabled ? { email: true } : null),
+        aiCtaUrl: links && links.length > 0 ? links[0].url : undefined,
+        aiCtaLabel: links && links.length > 0 ? links[0].label : undefined,
       },
     });
 

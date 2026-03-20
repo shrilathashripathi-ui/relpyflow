@@ -386,6 +386,7 @@ model Automation {
   aiContext           String?   @map("ai_context") // Business context for AI
   aiProductInfo       String?   @map("ai_product_info") // Product/service info
   aiCtaUrl            String?   @map("ai_cta_url") // Call-to-action URL
+  aiCtaLabel          String?   @map("ai_cta_label") // Button label for CTA
 
   // Webhook integration (n8n, Zapier, etc.)
   webhookEnabled      Boolean   @default(false) @map("webhook_enabled")
