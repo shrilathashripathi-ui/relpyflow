@@ -757,18 +757,17 @@ class CommentPoller {
       return;
     }
 
-    // Check if this user already has a trigger for THIS automation (prevent spam per-automation)
+    // Check if this user already has ANY trigger for THIS automation (prevent spam per-automation)
     // Different automations should still trigger DMs to the same user
     const existingUserTrigger = await prisma.trigger.findFirst({
       where: {
         automationId: automation.id,
-        commenterUsername: commenterUsername,
-        dmSent: true
+        commenterUsername: commenterUsername
       }
     });
 
     if (existingUserTrigger) {
-      console.log(`         ⏭️ Already sent DM to @${commenterUsername} for automation "${automation.name}"`);
+      console.log(`         ⏭️ Already triggered for @${commenterUsername} in automation "${automation.name}" (status: ${existingUserTrigger.status})`);
       return;
     }
 
