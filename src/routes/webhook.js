@@ -240,17 +240,18 @@ async function handleCommentEvent(igUserId, commentData) {
 
     if (existingTrigger) continue;
 
-    // Check for recent DM to this user (prevent spam)
-    const recentDM = await prisma.dmHistory.findFirst({
+    // Check if this user already has a trigger for THIS automation (prevent spam per-automation)
+    // Different automations should still trigger DMs to the same user
+    const existingUserTrigger = await prisma.trigger.findFirst({
       where: {
-        igAccountId: account.id,
-        recipientUsername: commenterUsername,
-        dmSentAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        automationId: automation.id,
+        commenterUsername: commenterUsername,
+        dmSent: true
       }
     });
 
-    if (recentDM) {
-      console.log(`   ⏭️ Already sent DM to @${commenterUsername} in last 24h`);
+    if (existingUserTrigger) {
+      console.log(`   ⏭️ Already sent DM to @${commenterUsername} for automation "${automation.name}"`);
       continue;
     }
 
