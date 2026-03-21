@@ -1484,19 +1484,19 @@ class DMQueueWorker {
           dm.commentId
         );
 
-        // Then: if multi-step flow, send the button as a Generic Template (same message card style)
+        // Then: if multi-step flow, send the button as a Quick Reply (tappable on both mobile & web)
         if (result.success && hasMultiStepFlow && automation?.openingButton) {
           try {
-            await officialApi.sendGenericTemplate(
+            await officialApi.sendQuickReply(
               account.accessToken,
               account.igUserId,
               dm.recipientIgId,
               `Tap below to get started 👇`,
-              [{ type: 'postback', title: automation.openingButton, payload: 'button_click' }]
+              [{ title: automation.openingButton, payload: 'button_click' }]
             );
-            console.log(`✅ [DMWorker] Button "${automation.openingButton}" sent as template card`);
+            console.log(`✅ [DMWorker] Button "${automation.openingButton}" sent as quick reply`);
           } catch (templateErr) {
-            console.warn(`⚠️ [DMWorker] Template button failed, user can type manually:`, templateErr.message);
+            console.warn(`⚠️ [DMWorker] Quick reply button failed, user can type manually:`, templateErr.message);
           }
         }
         const sendLatencyMs = Date.now() - sendStart;

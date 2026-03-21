@@ -199,7 +199,7 @@ async function handleUserResponse(trigger, account, responseText, rawMessage) {
       break;
 
     case 'waiting_follow':
-      await handleFollowCheck(trigger, account, automation);
+      await handleFollowCheck(trigger, account, automation, responseText);
       break;
 
     case 'waiting_email':
@@ -290,9 +290,32 @@ async function handleButtonClick(trigger, account, automation, responseText) {
 /**
  * Handle follow check
  */
-async function handleFollowCheck(trigger, account, automation) {
-  // Check if user is now following
-  const isFollowing = await checkIfUserIsFollowing(account, trigger.commenterIgId);
+async function handleFollowCheck(trigger, account, automation, responseText) {
+  // First try Official API follower check
+  let isFollowing = false;
+
+  if (account.useOfficialApi && account.accessToken) {
+    try {
+      isFollowing = await officialApi.checkFollower(account.accessToken, account.igUserId, trigger.commenterIgId);
+    } catch (err) {
+      console.warn(`[DM Handler] Official API follower check failed:`, err.message);
+    }
+  }
+
+  // Fallback: check via legacy API
+  if (!isFollowing) {
+    isFollowing = await checkIfUserIsFollowing(account, trigger.commenterIgId);
+  }
+
+  // Fallback: if user explicitly says they're following, trust them
+  if (!isFollowing && responseText) {
+    const normalized = responseText.toLowerCase().trim();
+    const followPhrases = ["i'm following", "im following", "i am following", "followed", "following", "done", "i followed"];
+    if (followPhrases.some(phrase => normalized.includes(phrase))) {
+      console.log(`[DM Handler] @${trigger.commenterUsername} claims to be following — accepting`);
+      isFollowing = true;
+    }
+  }
 
   if (!isFollowing) {
     console.log(`[DM Handler] @${trigger.commenterUsername} not following yet`);
@@ -407,6 +430,23 @@ async function sendFollowRequestMessage(trigger, account, automation) {
 
   try {
     await sendDMViaAccount(account, trigger.commenterIgId, message);
+
+    // Send "I'm following" quick reply button (tappable on both mobile & web)
+    if (account.useOfficialApi && account.accessToken) {
+      try {
+        await officialApi.sendQuickReply(
+          account.accessToken,
+          account.igUserId,
+          trigger.commenterIgId,
+          "Tap below once you've followed 👇",
+          [{ title: "I'm following", payload: 'follow_confirm' }]
+        );
+        console.log(`[DM Handler] Sent "I'm following" quick reply button to @${trigger.commenterUsername}`);
+      } catch (qrErr) {
+        console.warn(`[DM Handler] Quick reply failed, user can type manually:`, qrErr.message);
+      }
+    }
+
     console.log(`[DM Handler] Sent follow request to @${trigger.commenterUsername}`);
   } catch (error) {
     console.error('Error sending follow request message:', error);

@@ -15,7 +15,6 @@ const AutomationLeads = () => {
 
   useEffect(() => {
     fetchAutomationData();
-    // Update current time every second for countdown timer
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -24,13 +23,56 @@ const AutomationLeads = () => {
 
   const fetchAutomationData = async () => {
     try {
-      const [automationRes, leadsRes] = await Promise.all([
+      const [automationRes, triggersRes] = await Promise.all([
         automationAPI.getById(id),
-        automationAPI.getLeads(id)
+        automationAPI.getTriggers(id)
       ]);
       setAutomation(automationRes.data.automation);
-      setLeads(leadsRes.data.leads || []);
-      setPendingDMs(leadsRes.data.pendingDMs || []);
+
+      const triggers = triggersRes.data.triggers || [];
+      const allLeads = [];
+      const allPending = [];
+
+      triggers.forEach(trigger => {
+        const conversationStep = trigger.conversationStep ||
+          (trigger.dmSent && !trigger.buttonClicked ? 'waiting_button' :
+           trigger.linkSent ? 'link_sent' :
+           trigger.dmSent ? 'dm_sent' : 'pending');
+
+        const isWaitingForAction = conversationStep === 'waiting_button' ||
+                                   conversationStep === 'waiting_follow' ||
+                                   conversationStep === 'waiting_email';
+
+        allLeads.push({
+          id: trigger.id,
+          username: trigger.username || trigger.commenterUsername,
+          comment: trigger.commentText,
+          keyword: trigger.matchedKeyword || trigger.detectedKeyword,
+          dmStatus: trigger.dmSent ? 'sent' : (trigger.dmStatus || trigger.status),
+          conversationStep,
+          emailCollected: trigger.emailCollected || null,
+          triggeredAt: trigger.createdAt,
+          dmSentAt: trigger.dmSent ? trigger.updatedAt : null,
+          dmScheduledAt: trigger.dmScheduledAt
+        });
+
+        if (isWaitingForAction || (!trigger.dmSent && trigger.dmScheduledAt)) {
+          allPending.push({
+            id: trigger.id,
+            username: trigger.username || trigger.commenterUsername,
+            comment: trigger.commentText,
+            scheduledAt: trigger.dmScheduledAt || trigger.createdAt,
+            conversationStep,
+            isWaitingForAction
+          });
+        }
+      });
+
+      allLeads.sort((a, b) => new Date(b.triggeredAt) - new Date(a.triggeredAt));
+      allPending.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+
+      setLeads(allLeads);
+      setPendingDMs(allPending);
     } catch (err) {
       setError('Failed to load automation data');
       console.error('Error fetching automation data:', err);
@@ -39,7 +81,6 @@ const AutomationLeads = () => {
     }
   };
 
-  // Calculate countdown timer for pending DMs
   const getCountdown = (scheduledTime) => {
     const scheduled = new Date(scheduledTime);
     const diff = scheduled - currentTime;
@@ -131,25 +172,33 @@ const AutomationLeads = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold">
-                      {dm.recipientUsername?.charAt(0).toUpperCase() || '?'}
+                      {dm.username?.charAt(0).toUpperCase() || '?'}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-800 dark:text-white">@{dm.recipientUsername}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">{dm.message}</p>
+                      <p className="font-medium text-gray-800 dark:text-white">@{dm.username}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">{dm.comment}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="flex items-center gap-2 text-yellow-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="font-mono font-semibold">
-                        {getCountdown(dm.scheduledFor)}
+                    {dm.isWaitingForAction ? (
+                      <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                        Waiting for response
                       </span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Scheduled: {new Date(dm.scheduledFor).toLocaleTimeString()}
-                    </p>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 text-yellow-700">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-mono font-semibold">
+                            {getCountdown(dm.scheduledAt)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Scheduled: {new Date(dm.scheduledAt).toLocaleTimeString()}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -165,14 +214,6 @@ const AutomationLeads = () => {
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-white">All Leads</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{leads.length} total lead(s)</p>
               </div>
-              {leads.length > 0 && (
-                <button className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Export CSV
-                </button>
-              )}
             </div>
           </div>
 
@@ -181,9 +222,9 @@ const AutomationLeads = () => {
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">USER</th>
+                  <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">COMMENT</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">STATUS</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">TRIGGERED AT</th>
-                  <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">DM SENT</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500 dark:text-gray-400 text-sm">KEYWORD</th>
                 </tr>
               </thead>
@@ -212,9 +253,12 @@ const AutomationLeads = () => {
                           </div>
                           <div>
                             <p className="font-medium text-gray-800 dark:text-white">@{lead.username}</p>
-                            {lead.email && <p className="text-sm text-gray-500 dark:text-gray-400">{lead.email}</p>}
+                            {lead.emailCollected && <p className="text-sm text-gray-500 dark:text-gray-400">{lead.emailCollected}</p>}
                           </div>
                         </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{lead.comment || '-'}</p>
                       </td>
                       <td className="py-4 px-6">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -231,9 +275,6 @@ const AutomationLeads = () => {
                       </td>
                       <td className="py-4 px-6 text-gray-500 dark:text-gray-400">
                         {new Date(lead.triggeredAt).toLocaleString()}
-                      </td>
-                      <td className="py-4 px-6 text-gray-500">
-                        {lead.dmSentAt ? new Date(lead.dmSentAt).toLocaleString() : '-'}
                       </td>
                       <td className="py-4 px-6">
                         <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-sm">
