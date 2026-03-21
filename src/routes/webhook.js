@@ -242,15 +242,33 @@ async function handleCommentEvent(igUserId, commentData) {
 
     // Check if this user already has ANY trigger for THIS automation (prevent spam per-automation)
     // Different automations should still trigger DMs to the same user
+    // Check by BOTH igId and username to catch all cases
     const existingUserTrigger = await prisma.trigger.findFirst({
       where: {
         automationId: automation.id,
-        commenterUsername: commenterUsername
+        OR: [
+          { commenterIgId: commenterUserId },
+          { commenterUsername: commenterUsername }
+        ]
       }
     });
 
     if (existingUserTrigger) {
       console.log(`   ⏭️ Already triggered for @${commenterUsername} in automation "${automation.name}" (status: ${existingUserTrigger.status})`);
+      continue;
+    }
+
+    // Also check if there's already a pending/processing DM queued for this user + account (race condition guard)
+    const existingQueuedDM = await prisma.dmQueue.findFirst({
+      where: {
+        igAccountId: account.id,
+        recipientIgId: commenterUserId,
+        status: { in: ['pending', 'processing'] }
+      }
+    });
+
+    if (existingQueuedDM) {
+      console.log(`   ⏭️ DM already queued for @${commenterUsername} (queue status: ${existingQueuedDM.status})`);
       continue;
     }
 

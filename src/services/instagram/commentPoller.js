@@ -762,12 +762,29 @@ class CommentPoller {
     const existingUserTrigger = await prisma.trigger.findFirst({
       where: {
         automationId: automation.id,
-        commenterUsername: commenterUsername
+        OR: [
+          { commenterIgId: commenterUserId },
+          { commenterUsername: commenterUsername }
+        ]
       }
     });
 
     if (existingUserTrigger) {
       console.log(`         ⏭️ Already triggered for @${commenterUsername} in automation "${automation.name}" (status: ${existingUserTrigger.status})`);
+      return;
+    }
+
+    // Also check if there's already a pending/processing DM queued for this user + account
+    const existingQueuedDM = await prisma.dmQueue.findFirst({
+      where: {
+        igAccountId: account.id,
+        recipientIgId: commenterUserId,
+        status: { in: ['pending', 'processing'] }
+      }
+    });
+
+    if (existingQueuedDM) {
+      console.log(`         ⏭️ DM already queued for @${commenterUsername} (queue status: ${existingQueuedDM.status})`);
       return;
     }
 
