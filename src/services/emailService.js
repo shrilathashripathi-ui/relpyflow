@@ -13,15 +13,23 @@ const transporter = nodemailer.createTransport({
 /**
  * Send a 6-digit OTP email for email verification
  */
-async function sendOTP(toEmail, otp) {
+async function sendOTP(toEmail, otp, type = 'verify') {
+  const isReset = type === 'reset';
+  const subject = isReset ? 'Reset Your ReplyFlow Password' : 'Your ReplyFlow Verification Code';
+  const heading = isReset ? 'Password Reset' : 'Email Verification';
+  const description = isReset
+    ? 'Use the code below to reset your password:'
+    : 'Your verification code is:';
+
   const mailOptions = {
     from: `"ReplyFlow" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to: toEmail,
-    subject: 'Your ReplyFlow Verification Code',
+    subject,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f9fafb; border-radius: 12px;">
         <h2 style="color: #7c3aed; margin: 0 0 8px;">ReplyFlow</h2>
-        <p style="color: #374151; font-size: 16px;">Your verification code is:</p>
+        <p style="color: #6b7280; font-size: 13px; margin: 0 0 16px;">${heading}</p>
+        <p style="color: #374151; font-size: 16px;">${description}</p>
         <div style="background: #7c3aed; color: white; font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 16px; border-radius: 8px; margin: 16px 0;">
           ${otp}
         </div>
