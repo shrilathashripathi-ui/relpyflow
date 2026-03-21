@@ -288,24 +288,41 @@ class OfficialInstagramApiService {
   async checkFollower(accessToken, igUserId, followerIgId) {
     console.log(`🔍 [Official API] Checking if ${followerIgId} follows ${igUserId}`);
     try {
-      // Try to get the follower list and check if the user is in it
-      const response = await axios.get(
-        `${GRAPH_API_BASE}/${igUserId}/followers`,
-        {
-          params: {
-            access_token: accessToken,
-            limit: 100
-          }
+      // Paginate through followers to find the user
+      let url = `${GRAPH_API_BASE}/${igUserId}/followers`;
+      let params = { access_token: accessToken, limit: 100 };
+      let pages = 0;
+      const maxPages = 10; // Check up to 1000 followers
+
+      while (url && pages < maxPages) {
+        const response = await axios.get(url, { params });
+        const followers = response.data?.data || [];
+        const found = followers.some(f => f.id === followerIgId);
+
+        if (found) {
+          console.log(`✅ [Official API] Follower check: YES (found on page ${pages + 1})`);
+          return true;
         }
-      );
-      const followers = response.data?.data || [];
-      const isFollowing = followers.some(f => f.id === followerIgId);
-      console.log(`✅ [Official API] Follower check: ${isFollowing ? 'YES' : 'NO'}`);
-      return isFollowing;
-    } catch (error) {
-      // If endpoint not available, try alternative approach
-      console.warn(`⚠️ [Official API] Follower check failed, assuming not following:`, error.response?.data?.error?.message || error.message);
+
+        // Check next page
+        const nextUrl = response.data?.paging?.next;
+        if (nextUrl) {
+          url = nextUrl;
+          params = {}; // next URL already includes params
+        } else {
+          break;
+        }
+        pages++;
+      }
+
+      console.log(`❌ [Official API] Follower check: NO (checked ${pages + 1} page(s))`);
       return false;
+    } catch (error) {
+      const errMsg = error.response?.data?.error?.message || error.message;
+      console.warn(`⚠️ [Official API] Follower check failed:`, errMsg);
+      // If the API doesn't support this endpoint, return null (not false)
+      // so the caller can decide to trust the user's claim
+      return null;
     }
   }
 

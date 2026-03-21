@@ -454,6 +454,7 @@ model Trigger {
   buttonClicked       Boolean   @default(false) @map("button_clicked")
   buttonClickedAt     DateTime? @map("button_clicked_at")
   emailCollected      String?   @map("email_collected")
+  followCheckAttempts Int       @default(0) @map("follow_check_attempts")
   linkSent            Boolean   @default(false) @map("link_sent")
   linkSentAt          DateTime? @map("link_sent_at")
   followUpSent        Boolean   @default(false) @map("follow_up_sent")

@@ -531,9 +531,9 @@ const CreateAutomation = () => {
                       <textarea value={openingMessage} onChange={(e) => setOpeningMessage(e.target.value)} rows={4} className="w-full bg-transparent border-none focus:outline-none resize-none text-gray-700 dark:text-gray-300" placeholder="Write your opening message..." />
                     </div>
                     <div className="border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3">
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Reply keyword (user will type this to continue)</label>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Quick reply button (user will tap this to continue)</label>
                       <input type="text" value={openingButton} onChange={(e) => setOpeningButton(e.target.value)} placeholder='e.g. "I want my free PDF"' className="w-full bg-transparent border-none focus:outline-none text-gray-700 dark:text-gray-300" />
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This text will be appended to your DM as a reply prompt</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This will appear as a clickable button below your DM</p>
                     </div>
                   </>
                 )}

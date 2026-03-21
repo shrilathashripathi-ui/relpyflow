@@ -386,18 +386,35 @@ async function handleConversationReply(account, trigger, responseText, senderIgI
 
     console.log(`💬 [Webhook] @${trigger.commenterUsername} claims they're following — verifying...`);
 
+    // Track how many times user has claimed they're following
+    const followAttempts = (trigger.followCheckAttempts || 0) + 1;
+    await prisma.trigger.update({
+      where: { id: trigger.id },
+      data: { followCheckAttempts: followAttempts }
+    });
+
     // Check if they actually follow
     const isFollowing = await officialApi.checkFollower(account.accessToken, account.igUserId, senderIgId);
 
-    if (!isFollowing) {
-      // Not following — re-ask with Follow button + "I'm following" quick reply
-      console.log(`❌ [Webhook] @${trigger.commenterUsername} is NOT following yet, re-asking`);
+    if (isFollowing === false && followAttempts < 2) {
+      // Not following and first attempt — re-ask
+      console.log(`❌ [Webhook] @${trigger.commenterUsername} is NOT following yet (attempt ${followAttempts}), re-asking`);
       await sendFollowMessage(account, senderIgId, automation);
       return;
     }
 
-    // Confirmed follower!
-    console.log(`✅ [Webhook] @${trigger.commenterUsername} is now following!`);
+    if (isFollowing === false && followAttempts >= 2) {
+      // User claimed twice but API says no — trust the user (API may be delayed/paginated)
+      console.log(`⚠️ [Webhook] @${trigger.commenterUsername} claimed following ${followAttempts}x, API says no — trusting user (API may be delayed)`);
+    }
+
+    if (isFollowing === null) {
+      // API error — trust the user's claim
+      console.log(`⚠️ [Webhook] @${trigger.commenterUsername} follow check API failed — trusting user's claim`);
+    }
+
+    // Confirmed or trusted follower!
+    console.log(`✅ [Webhook] @${trigger.commenterUsername} is now following! (verified: ${isFollowing === true})`);
     await advanceToNextStep(account, trigger, automation, senderIgId, 'follow_done');
 
   } else if (currentStep === 'waiting_email') {
@@ -449,15 +466,15 @@ async function advanceToNextStep(account, trigger, automation, senderIgId, compl
     if (automation.askForFollowEnabled) {
       // Check if lead already follows before asking
       const alreadyFollowing = await officialApi.checkFollower(account.accessToken, account.igUserId, senderIgId);
-      if (alreadyFollowing) {
+      if (alreadyFollowing === true) {
         console.log(`✅ [Webhook] @${trigger.commenterUsername} already follows — skipping follow step`);
         return advanceToNextStep(account, trigger, automation, senderIgId, 'follow_done');
       }
-      // Not following — send follow message with buttons
+      // Not following or API unavailable — send follow message with buttons
       await sendFollowMessage(account, senderIgId, automation);
       await prisma.trigger.update({
         where: { id: trigger.id },
-        data: { conversationStep: 'waiting_follow', status: 'waiting_follow' }
+        data: { conversationStep: 'waiting_follow', status: 'waiting_follow', followCheckAttempts: 0 }
       });
       return;
     }
