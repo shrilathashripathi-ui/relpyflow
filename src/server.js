@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const pinoHttp = require('pino-http');
 require('dotenv').config();
@@ -28,6 +29,8 @@ const {
   authLimiter,
   oauthLimiter,
   webhookLimiter,
+  otpLimiter,
+  registrationLimiter,
 } = require('./middleware/rateLimit');
 
 // Import services
@@ -73,6 +76,16 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
+
+// Security headers — protects against XSS, clickjacking, MIME sniffing, etc.
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled — API-only server, no HTML rendering
+  crossOriginEmbedderPolicy: false, // Allow cross-origin requests from frontend
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+  },
+}));
 
 // Razorpay webhook needs raw body BEFORE express.json() parses it
 app.use('/api/razorpay/webhook', webhookLimiter, express.raw({ type: 'application/json' }), razorpayWebhookRoutes);

@@ -40,7 +40,6 @@ router.get('/auth', oauthLimiter, protect, (req, res) => {
   const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code&state=${state}&auth_type=rerequest`;
 
   console.log('🔗 Facebook Login OAuth URL generated for user:', req.user.id);
-  console.log('🔗 FB App ID:', fbAppId, '| Redirect URI:', redirectUri);
   res.json({ authUrl });
 });
 
@@ -252,7 +251,6 @@ router.get('/auth/instagram', oauthLimiter, protect, (req, res) => {
     const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&auth_type=reauthenticate&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scopes}&state=${state}`;
 
     console.log('🔗 Instagram OAuth URL generated for user:', req.user.id);
-    console.log('🔗 App ID:', appId, '| Redirect URI:', redirectUri);
     res.json({ authUrl });
   } catch (error) {
     console.error('Instagram auth URL error:', error);

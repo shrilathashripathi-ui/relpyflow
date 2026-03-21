@@ -105,6 +105,32 @@ const workerLimiter = rateLimit({
   },
 });
 
+// ─── OTP Verification Limiter (Very Strict) ─────────────────────
+// Prevents brute-forcing 6-digit OTPs (1M combinations)
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                    // 5 OTP attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many verification attempts. Please wait 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// ─── Account Creation Limiter (Strict) ───────────────────────────
+// Prevents mass account creation by bots
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1 hour
+  max: 5,                     // 5 registrations per hour per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many accounts created. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
 module.exports = {
   globalLimiter,
   authLimiter,
@@ -112,4 +138,6 @@ module.exports = {
   syncLimiter,
   webhookLimiter,
   workerLimiter,
+  otpLimiter,
+  registrationLimiter,
 };

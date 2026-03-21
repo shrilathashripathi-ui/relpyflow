@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect } = require('../middleware/auth');
+const { createAutomationValidation, sanitizeQueryParams } = require('../middleware/validation');
 const aiReplyService = require('../services/aiReplyService');
 const webhookService = require('../services/webhookService');
 const crypto = require('crypto');
@@ -72,7 +73,7 @@ function formatRelativeTime(date) {
 }
 
 // Create Automation
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, createAutomationValidation, async (req, res) => {
   try {
     const {
       instagramAccountId,
@@ -342,6 +343,14 @@ router.delete('/:id', protect, async (req, res) => {
 // Get Triggers with DM queue info
 router.get('/:id/triggers', protect, async (req, res) => {
   try {
+    // Verify automation belongs to user
+    const automation = await prisma.automation.findFirst({
+      where: { id: req.params.id, userId: req.user.id }
+    });
+    if (!automation) {
+      return res.status(404).json({ error: 'Automation not found' });
+    }
+
     const triggers = await prisma.trigger.findMany({
       where: { automationId: req.params.id },
       orderBy: { createdAt: 'desc' },
@@ -551,7 +560,12 @@ router.get('/:id/leads/export', protect, async (req, res) => {
 
     const csv = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map(row => row.map(cell => {
+        // Escape quotes and prevent CSV formula injection
+        let safe = String(cell).replace(/"/g, '""');
+        if (/^[=+\-@\t\r]/.test(safe)) safe = "'" + safe;
+        return `"${safe}"`;
+      }).join(','))
     ].join('\n');
 
     res.setHeader('Content-Type', 'text/csv');

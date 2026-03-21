@@ -4,10 +4,14 @@
 
 const express = require('express');
 const { protect } = require('../middleware/auth');
+const { sanitizeQueryParams } = require('../middleware/validation');
 const uptimeMonitor = require('../services/uptimeMonitor');
 
 const router = express.Router();
 const prisma = require('../config/prisma');
+
+// Apply query param sanitization to all analytics routes
+router.use(sanitizeQueryParams);
 
 // Normalize DM status for frontend display.
 // NEVER default to 'sent' — failed DMs must show as failed.

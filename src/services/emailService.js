@@ -43,10 +43,12 @@ async function sendOTP(toEmail, otp) {
 }
 
 /**
- * Generate a 6-digit numeric OTP
+ * Generate a cryptographically secure 6-digit numeric OTP
  */
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const crypto = require('crypto');
+  // Use crypto.randomInt for uniform distribution in [100000, 999999]
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 module.exports = { sendOTP, generateOTP };
