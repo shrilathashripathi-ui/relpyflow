@@ -43,6 +43,12 @@ const dmConversationHandler = require('./services/dmConversationHandler');
 const healthSnapshotWorker = require('./services/healthSnapshotWorker');
 const followUpWorker = require('./services/followUpWorker');
 
+// New queue-based workers (v2 — set USE_JOB_QUEUE=true to enable)
+const pollScheduler = require('./services/queue/pollScheduler');
+const pollWorker = require('./services/queue/pollWorker');
+const dmWorker = require('./services/queue/dmWorker');
+const housekeeper = require('./services/queue/housekeeper');
+
 const app = express();
 
 // Trust proxy (DigitalOcean App Platform uses a reverse proxy / load balancer)
@@ -152,11 +158,16 @@ app.get('/health/ping', (req, res) => {
 });
 
 // Simple health endpoint for DigitalOcean App Platform / external uptime monitors
-app.get('/health/status', (req, res) => {
+app.get('/health/status', async (req, res) => {
+  const queueStats = process.env.USE_JOB_QUEUE === 'true'
+    ? await require('./services/queue/pgQueue').stats().catch(() => null)
+    : null;
+
   res.json({
     status: 'ok',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    ...(queueStats ? { queue: queueStats } : {}),
   });
 });
 
@@ -206,23 +217,51 @@ app.listen(PORT, async () => {
   console.log('📊 Starting uptime monitor...');
   uptimeMonitor.start(60000); // Check every minute
 
-  // Start workers in-process (comment poller, DM queue, conversation handler)
+  // Start workers in-process
   console.log('🤖 Starting workers...');
   try {
-    commentPoller.start();
-    console.log('  ✅ Comment poller started');
+    if (process.env.USE_JOB_QUEUE === 'true') {
+      // === NEW: Queue-based workers (v2) ===
+      console.log('  📋 Using job queue system (v2)');
 
-    dmQueueWorker.start();
-    console.log('  ✅ DM queue worker started');
+      pollScheduler.start();
+      console.log('  ✅ Poll scheduler started');
 
-    await dmConversationHandler.startConversationHandler();
-    console.log('  ✅ Conversation handler started');
+      pollWorker.start();
+      console.log('  ✅ Poll worker started');
 
-    healthSnapshotWorker.start();
-    console.log('  ✅ Health snapshot worker started');
+      dmWorker.start();
+      console.log('  ✅ DM worker started');
 
-    followUpWorker.start();
-    console.log('  ✅ Follow-up worker started');
+      housekeeper.start();
+      console.log('  ✅ Housekeeper started');
+
+      // These still run alongside the queue system
+      await dmConversationHandler.startConversationHandler();
+      console.log('  ✅ Conversation handler started');
+
+      followUpWorker.start();
+      console.log('  ✅ Follow-up worker started');
+
+      healthSnapshotWorker.start();
+      console.log('  ✅ Health snapshot worker started');
+    } else {
+      // === LEGACY: Direct polling workers (v1) ===
+      commentPoller.start();
+      console.log('  ✅ Comment poller started');
+
+      dmQueueWorker.start();
+      console.log('  ✅ DM queue worker started');
+
+      await dmConversationHandler.startConversationHandler();
+      console.log('  ✅ Conversation handler started');
+
+      healthSnapshotWorker.start();
+      console.log('  ✅ Health snapshot worker started');
+
+      followUpWorker.start();
+      console.log('  ✅ Follow-up worker started');
+    }
 
     console.log('🚀 All workers running. Automation is live.');
   } catch (err) {
@@ -232,24 +271,25 @@ app.listen(PORT, async () => {
 });
 
 // Graceful shutdown — stop both server and workers
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
+function gracefulShutdown(signal) {
+  console.log(`🛑 ${signal} received, shutting down gracefully...`);
   uptimeMonitor.stop();
-  commentPoller.stop();
-  dmQueueWorker.stop();
-  dmConversationHandler.stopConversationHandler();
-  healthSnapshotWorker.stop();
-  followUpWorker.stop();
-  process.exit(0);
-});
 
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully...');
-  uptimeMonitor.stop();
-  commentPoller.stop();
-  dmQueueWorker.stop();
+  if (process.env.USE_JOB_QUEUE === 'true') {
+    pollScheduler.stop();
+    pollWorker.stop();
+    dmWorker.stop();
+    housekeeper.stop();
+  } else {
+    commentPoller.stop();
+    dmQueueWorker.stop();
+  }
+
   dmConversationHandler.stopConversationHandler();
   healthSnapshotWorker.stop();
   followUpWorker.stop();
   process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

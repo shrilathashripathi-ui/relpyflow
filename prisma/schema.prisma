@@ -653,6 +653,47 @@ model ScheduledReminder {
 }
 
 // ============================================
+// JOB QUEUE (PostgreSQL-backed, replaces Redis for MVP)
+// ============================================
+
+model JobQueue {
+  id              String    @id @default(uuid())
+  jobType         String    @map("job_type")        // "poll_account" | "send_dm"
+  groupKey        String?   @map("group_key")       // igAccountId — prevents concurrent same-account jobs
+  payload         Json      @default("{}")
+  status          String    @default("pending")     // pending | processing | completed | failed
+  runAt           DateTime  @default(now()) @map("run_at")
+  lockedBy        String?   @map("locked_by")
+  lockedAt        DateTime? @map("locked_at")
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(3) @map("max_attempts")
+  lastError       String?   @map("last_error")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([status, runAt])
+  @@index([jobType, groupKey])
+  @@map("job_queue")
+}
+
+model PollState {
+  id                String    @id @default(uuid())
+  igAccountId       String    @unique @map("ig_account_id")
+  intervalMs        Int       @default(300000) @map("interval_ms")          // Current adaptive interval (start 5min)
+  consecutiveEmpty  Int       @default(0) @map("consecutive_empty")
+  consecutiveActive Int       @default(0) @map("consecutive_active")
+  lastPollAt        DateTime? @map("last_poll_at")
+  lastCommentAt     DateTime? @map("last_comment_at")                       // Last time new comments were found
+  lastPollError     String?   @map("last_poll_error")
+  apiCallsThisHour  Int       @default(0) @map("api_calls_this_hour")
+  apiCallsHourReset DateTime? @map("api_calls_hour_reset")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("poll_state")
+}
+
+// ============================================
 // ACCOUNT HEALTH SNAPSHOTS (daily metrics for trend detection)
 // ============================================
 
