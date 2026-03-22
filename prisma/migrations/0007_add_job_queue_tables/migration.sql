@@ -42,3 +42,6 @@ CREATE INDEX "job_queue_status_locked_at_idx" ON "job_queue"("status", "locked_a
 
 -- CreateIndex: poll_state unique constraint
 CREATE UNIQUE INDEX "poll_state_ig_account_id_key" ON "poll_state"("ig_account_id");
+
+-- Add missing follow_up_count column to triggers
+ALTER TABLE "triggers" ADD COLUMN IF NOT EXISTS "follow_up_count" INTEGER NOT NULL DEFAULT 0;
