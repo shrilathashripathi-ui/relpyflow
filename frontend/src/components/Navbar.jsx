@@ -8,7 +8,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     removeToken();
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   const isActive = (path) => location.pathname === path;
