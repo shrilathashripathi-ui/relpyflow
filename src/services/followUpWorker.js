@@ -117,25 +117,26 @@ async function processFollowUps() {
   }
 }
 
-let workerTimer = null;
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function runLoop() {
+  while (isRunning) {
+    await processFollowUps();
+    await sleep(POLL_INTERVAL);
+  }
+}
 
 function start() {
   if (isRunning) return;
   isRunning = true;
   console.log('🔄 [FollowUp] Worker started (checking every 60s, 5min delay, max 2 follow-ups)');
-
-  workerTimer = setInterval(async () => {
-    await processFollowUps();
-  }, POLL_INTERVAL);
-
-  // Run once immediately
-  processFollowUps();
+  runLoop();
 }
 
 function stop() {
   isRunning = false;
-  if (workerTimer) clearInterval(workerTimer);
-  workerTimer = null;
   console.log('🛑 [FollowUp] Worker stopped');
 }
 

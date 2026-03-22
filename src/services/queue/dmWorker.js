@@ -18,11 +18,8 @@ const { decryptAccountTokens, decrypt } = require('../../utils/encryption');
 
 let workerTimer = null;
 
-// In-memory rate tracking
-const accountDmCounts = {}; // { accountId: { hour: count, hourReset: timestamp, day: count, dayReset: timestamp } }
-
 /**
- * Check rate limits for an account
+ * Check rate limits for an account using DB-based counting (survives restarts)
  */
 async function canSendDM(igAccountId) {
   // Get configured limits
@@ -32,43 +29,36 @@ async function canSendDM(igAccountId) {
   const maxPerHour = config?.maxDmsPerHour || 20;
   const maxPerDay = config?.maxDmsPerDay || 100;
 
-  const now = Date.now();
-  const tracker = accountDmCounts[igAccountId] || {
-    hour: 0, hourReset: now + 3600000,
-    day: 0, dayReset: now + 86400000
-  };
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 3600000);
+  const oneDayAgo = new Date(now.getTime() - 86400000);
 
-  // Reset counters if window passed
-  if (now > tracker.hourReset) {
-    tracker.hour = 0;
-    tracker.hourReset = now + 3600000;
-  }
-  if (now > tracker.dayReset) {
-    tracker.day = 0;
-    tracker.dayReset = now + 86400000;
-  }
+  // Count DMs sent in last hour from DmHistory (persistent, survives restarts)
+  const [hourlyCount, dailyCount] = await Promise.all([
+    prisma.dmHistory.count({
+      where: {
+        igAccountId,
+        status: 'sent',
+        dmSentAt: { gte: oneHourAgo }
+      }
+    }),
+    prisma.dmHistory.count({
+      where: {
+        igAccountId,
+        status: 'sent',
+        dmSentAt: { gte: oneDayAgo }
+      }
+    })
+  ]);
 
-  accountDmCounts[igAccountId] = tracker;
-
-  if (tracker.hour >= maxPerHour) {
-    return { allowed: false, reason: `Hourly limit reached (${maxPerHour}/hr)` };
+  if (hourlyCount >= maxPerHour) {
+    return { allowed: false, reason: `Hourly limit reached (${hourlyCount}/${maxPerHour}/hr)` };
   }
-  if (tracker.day >= maxPerDay) {
-    return { allowed: false, reason: `Daily limit reached (${maxPerDay}/day)` };
+  if (dailyCount >= maxPerDay) {
+    return { allowed: false, reason: `Daily limit reached (${dailyCount}/${maxPerDay}/day)` };
   }
 
   return { allowed: true };
-}
-
-/**
- * Record a successful DM send
- */
-function recordSend(igAccountId) {
-  const tracker = accountDmCounts[igAccountId];
-  if (tracker) {
-    tracker.hour++;
-    tracker.day++;
-  }
 }
 
 /**
@@ -203,9 +193,6 @@ async function processJob(job) {
       where: { id: automationId },
       data: { dmsSentCount: { increment: 1 } }
     });
-
-    // Track rate
-    recordSend(igAccountId);
 
     console.log(`✅ [DmWorker] DM sent to @${recipientUsername} (${latencyMs}ms)`);
     await queue.complete(job.id);

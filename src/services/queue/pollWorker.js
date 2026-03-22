@@ -86,9 +86,9 @@ async function processJob(job) {
       await pauseAccount(igAccountId, 'Access token expired', 3600000);
       await queue.complete(job.id); // Don't retry auth errors
     } else if (err.response?.status === 429) {
-      await queue.fail(job.id, 'Rate limited', job.max_attempts);
+      await queue.fail(job.id, 'Rate limited', job.maxAttempts);
     } else {
-      await queue.fail(job.id, err.message, job.max_attempts);
+      await queue.fail(job.id, err.message, job.maxAttempts);
     }
 
     await scheduleNext(igAccountId, 0);
@@ -249,7 +249,7 @@ async function processMediaComments(account, mediaItem) {
         commentText,
         matchedKeyword: match.keyword
       }, {
-        groupKey: account.id,
+        groupKey: `dm:${trigger.id}`,
         runAt: new Date(Date.now() + delay)
       });
 
