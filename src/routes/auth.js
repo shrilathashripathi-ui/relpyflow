@@ -30,8 +30,7 @@ router.post('/register', registrationLimiter, registerValidation, async (req, re
 
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) {
-      // Generic message to prevent email enumeration
-      return res.status(400).json({ error: 'Unable to create account with this email' });
+      return res.status(400).json({ error: 'An account with this email already exists' });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -332,6 +331,44 @@ router.get('/profile', protect, async (req, res) => {
   } catch (error) {
     console.error('Profile fetch error:', error.message);
     res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
+// Delete Account — removes user and ALL related data (cascades via DB)
+router.delete('/account', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get all Instagram accounts to revoke permissions
+    const igAccounts = await prisma.instagramAccount.findMany({
+      where: { userId },
+      select: { id: true, accessToken: true, igUserId: true }
+    });
+
+    // Revoke Instagram permissions for each connected account
+    for (const account of igAccounts) {
+      if (account.accessToken && account.igUserId) {
+        try {
+          const fetch = (await import('node-fetch')).default;
+          await fetch(
+            `https://graph.instagram.com/${account.igUserId}/permissions?access_token=${account.accessToken}`,
+            { method: 'DELETE' }
+          );
+          console.log(`🔓 Revoked Instagram permissions for IG user ${account.igUserId}`);
+        } catch (revokeErr) {
+          console.error(`Failed to revoke IG permissions for ${account.igUserId}:`, revokeErr.message);
+        }
+      }
+    }
+
+    // Delete user — all related data cascades via onDelete: Cascade in schema
+    await prisma.user.delete({ where: { id: userId } });
+
+    console.log(`🗑️ Deleted user account ${userId} and all related data`);
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Account deletion error:', error.message);
+    res.status(500).json({ error: 'Failed to delete account. Please try again.' });
   }
 });
 
