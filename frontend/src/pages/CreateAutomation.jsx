@@ -112,6 +112,9 @@ const CreateAutomation = () => {
   const [links, setLinks] = useState([]);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkInput, setLinkInput] = useState({ label: '', url: '' });
+  const [showButtonModal, setShowButtonModal] = useState(false);
+  const [buttonInput, setButtonInput] = useState('');
+  const [showCreatedPopup, setShowCreatedPopup] = useState(false);
 
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("If you're still curious, don't forget to tap the link ⬆️ I think you'll love it ❤️");
@@ -359,10 +362,13 @@ const CreateAutomation = () => {
     console.log('Submitting automation:', automationData);
 
     try {
-      if (isEditMode) await automationAPI.update(editId, automationData);
-      else await automationAPI.create(automationData);
-
-      navigate('/automations');
+      if (isEditMode) {
+        await automationAPI.update(editId, automationData);
+        navigate('/automations');
+      } else {
+        await automationAPI.create(automationData);
+        setShowCreatedPopup(true);
+      }
     } catch (error) {
       console.error('Error saving automation:', error);
       console.error('Error response:', error.response?.data);
@@ -530,11 +536,19 @@ const CreateAutomation = () => {
                     <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-3">
                       <textarea value={openingMessage} onChange={(e) => setOpeningMessage(e.target.value)} rows={4} className="w-full bg-transparent border-none focus:outline-none resize-none text-gray-700 dark:text-gray-300" placeholder="Write your opening message..." />
                     </div>
-                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3">
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Quick reply button (user will tap this to continue)</label>
-                      <input type="text" value={openingButton} onChange={(e) => setOpeningButton(e.target.value)} placeholder='e.g. "I want my free PDF"' className="w-full bg-transparent border-none focus:outline-none text-gray-700 dark:text-gray-300" />
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This will appear as a clickable button below your DM</p>
-                    </div>
+                    {/* Add Button - similar to Add A Link */}
+                    <button
+                      onClick={() => setShowButtonModal(true)}
+                      className="w-full border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400 flex items-center justify-center gap-2"
+                    >
+                      <span>+</span> Add A Button
+                    </button>
+                    {openingButton && (
+                      <div className="border border-purple-300 dark:border-purple-600 rounded-lg px-4 py-3 mt-2 flex items-center justify-between bg-purple-50 dark:bg-purple-900/20">
+                        <span className="text-purple-700 dark:text-purple-300 font-medium">{openingButton}</span>
+                        <button onClick={() => setOpeningButton('')} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400">×</button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -664,6 +678,43 @@ const CreateAutomation = () => {
             <div className="p-6 border-t dark:border-gray-700">
               <button onClick={() => { setCommentReplies(commentReplies.filter(r => r.trim() !== '')); setShowReplyModal(false); }} className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700">Confirm</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Button Modal */}
+      {showButtonModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add a button</h3>
+              <button onClick={() => setShowButtonModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">×</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">Button label</label>
+              <input type="text" value={buttonInput} onChange={(e) => setButtonInput(e.target.value)} placeholder='e.g. "I want my free PDF"' className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400" />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">This button will appear below your opening DM. When the user taps it, the automation continues.</p>
+            </div>
+            <div className="p-6 border-t dark:border-gray-700 flex gap-3">
+              <button onClick={() => { setButtonInput(''); setShowButtonModal(false); }} className="flex-1 py-3 border border-gray-300 dark:border-gray-600 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Cancel</button>
+              <button onClick={() => { setOpeningButton(buttonInput || 'I want my free PDF'); setShowButtonModal(false); setButtonInput(''); }} disabled={!buttonInput} className="flex-1 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Automation Created Popup */}
+      {showCreatedPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full text-center p-8">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Automation Created!</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Your automation will start monitoring for comments in about 2 minutes. Sit back and watch the leads roll in!</p>
+            <button onClick={() => { setShowCreatedPopup(false); navigate('/automations'); }} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 w-full">Go to Automations</button>
           </div>
         </div>
       )}

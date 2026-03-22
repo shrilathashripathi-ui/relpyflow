@@ -186,6 +186,26 @@ async function handleMessagingEvent(igUserId, event) {
       await handleConversationReply(account, activeTrigger, message.text, senderId);
     }
 
+    // If user replies after link was sent → they engaged, mark completed (stop follow-ups)
+    if (!activeTrigger) {
+      const linkSentTrigger = await prisma.trigger.findFirst({
+        where: {
+          commenterIgId: senderId,
+          automation: { instagramAccountId: account.id },
+          conversationStep: 'link_sent',
+          status: { not: 'completed_engaged' }
+        }
+      });
+
+      if (linkSentTrigger) {
+        console.log(`✅ [Webhook] @${linkSentTrigger.commenterUsername} replied after link — marking as engaged (stopping follow-ups)`);
+        await prisma.trigger.update({
+          where: { id: linkSentTrigger.id },
+          data: { status: 'completed_engaged', conversationStep: 'completed' }
+        });
+      }
+    }
+
     // Check if it's a DM-triggered automation (type: "dm")
     for (const automation of account.automations) {
       if (automation.type !== 'dm') continue;

@@ -459,6 +459,7 @@ model Trigger {
   linkSentAt          DateTime? @map("link_sent_at")
   followUpSent        Boolean   @default(false) @map("follow_up_sent")
   followUpSentAt      DateTime? @map("follow_up_sent_at")
+  followUpCount       Int       @default(0) @map("follow_up_count")
 
   createdAt           DateTime  @default(now()) @map("created_at")
 

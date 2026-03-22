@@ -41,6 +41,7 @@ const commentPoller = require('./services/instagram/commentPoller');
 const dmQueueWorker = require('./services/dmQueueWorker');
 const dmConversationHandler = require('./services/dmConversationHandler');
 const healthSnapshotWorker = require('./services/healthSnapshotWorker');
+const followUpWorker = require('./services/followUpWorker');
 
 const app = express();
 
@@ -220,6 +221,9 @@ app.listen(PORT, async () => {
     healthSnapshotWorker.start();
     console.log('  ✅ Health snapshot worker started');
 
+    followUpWorker.start();
+    console.log('  ✅ Follow-up worker started');
+
     console.log('🚀 All workers running. Automation is live.');
   } catch (err) {
     console.error('❌ Worker startup failed:', err.message);
@@ -235,6 +239,7 @@ process.on('SIGTERM', () => {
   dmQueueWorker.stop();
   dmConversationHandler.stopConversationHandler();
   healthSnapshotWorker.stop();
+  followUpWorker.stop();
   process.exit(0);
 });
 
@@ -245,5 +250,6 @@ process.on('SIGINT', () => {
   dmQueueWorker.stop();
   dmConversationHandler.stopConversationHandler();
   healthSnapshotWorker.stop();
+  followUpWorker.stop();
   process.exit(0);
 });
