@@ -16,6 +16,8 @@ const { decryptAccountTokens } = require('../utils/encryption');
 
 const router = express.Router();
 const prisma = require('../config/prisma');
+const useJobQueue = process.env.USE_JOB_QUEUE === 'true';
+const jobQueue = useJobQueue ? require('../services/queue/pgQueue') : null;
 
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'replyflow_webhook_verify_2025';
 const APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
@@ -279,13 +281,25 @@ async function handleCommentEvent(igUserId, commentData) {
     }
 
     // Also check if there's already a pending/processing DM queued for this user + account (race condition guard)
-    const existingQueuedDM = await prisma.dmQueue.findFirst({
-      where: {
-        igAccountId: account.id,
-        recipientIgId: commenterUserId,
-        status: { in: ['pending', 'processing'] }
-      }
-    });
+    let existingQueuedDM;
+    if (useJobQueue) {
+      existingQueuedDM = await prisma.jobQueue.findFirst({
+        where: {
+          jobType: 'send_dm',
+          groupKey: account.id,
+          status: { in: ['pending', 'processing'] },
+          payload: { path: ['recipientIgId'], equals: commenterUserId }
+        }
+      });
+    } else {
+      existingQueuedDM = await prisma.dmQueue.findFirst({
+        where: {
+          igAccountId: account.id,
+          recipientIgId: commenterUserId,
+          status: { in: ['pending', 'processing'] }
+        }
+      });
+    }
 
     if (existingQueuedDM) {
       console.log(`   ⏭️ DM already queued for @${commenterUsername} (queue status: ${existingQueuedDM.status})`);
@@ -337,20 +351,37 @@ async function handleCommentEvent(igUserId, commentData) {
 
     // Queue the DM with a short delay (official API is safe, no need for long delays)
     const scheduledDelay = Math.floor(Math.random() * 30000) + 10000; // 10-40 seconds
-    await prisma.dmQueue.create({
-      data: {
+
+    if (useJobQueue) {
+      await jobQueue.enqueue('send_dm', {
         igAccountId: account.id,
-        monitoredReelId: monitoredReel?.id || 'webhook-' + Date.now(),
+        triggerId: trigger.id,
+        automationId: automation.id,
         recipientIgId: commenterUserId,
         recipientUsername: commenterUsername,
         commentId: commentId,
         commentText: commentText,
-        detectedKeyword: matchResult.keyword,
-        messageToSend: automation.responseMessage,
-        status: 'pending',
-        scheduledAt: new Date(Date.now() + scheduledDelay)
-      }
-    });
+        matchedKeyword: matchResult.keyword
+      }, {
+        groupKey: account.id,
+        runAt: new Date(Date.now() + scheduledDelay)
+      });
+    } else {
+      await prisma.dmQueue.create({
+        data: {
+          igAccountId: account.id,
+          monitoredReelId: monitoredReel?.id || 'webhook-' + Date.now(),
+          recipientIgId: commenterUserId,
+          recipientUsername: commenterUsername,
+          commentId: commentId,
+          commentText: commentText,
+          detectedKeyword: matchResult.keyword,
+          messageToSend: automation.responseMessage,
+          status: 'pending',
+          scheduledAt: new Date(Date.now() + scheduledDelay)
+        }
+      });
+    }
 
     console.log(`   📬 DM queued (${Math.round(scheduledDelay / 1000)}s delay)`);
 

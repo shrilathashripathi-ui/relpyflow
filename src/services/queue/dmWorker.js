@@ -104,7 +104,9 @@ async function processJob(job) {
     let accessToken;
     try {
       accessToken = decrypt(account.accessToken);
-    } catch {
+    } catch (decryptErr) {
+      // If decryption fails, token might be stored unencrypted (legacy)
+      console.warn(`⚠️ [DmWorker] Token decrypt failed for account ${igAccountId}, using raw token`);
       accessToken = account.accessToken;
     }
 
@@ -118,8 +120,13 @@ async function processJob(job) {
     }
 
     // === IDEMPOTENCY: Check if DM already sent for this trigger ===
-    const trigger = await prisma.trigger.findUnique({ where: { id: triggerId } });
-    if (!trigger || trigger.dmSent) {
+    // Use atomic updateMany with condition to prevent race between concurrent workers
+    const lockResult = await prisma.trigger.updateMany({
+      where: { id: triggerId, dmSent: false },
+      data: { status: 'processing' }
+    });
+    if (lockResult.count === 0) {
+      // Either trigger doesn't exist or DM already sent
       await queue.complete(job.id);
       return;
     }
@@ -234,7 +241,7 @@ async function processJob(job) {
       }
       await queue.complete(job.id);
     } else {
-      await queue.fail(job.id, err.message, job.max_attempts || 3);
+      await queue.fail(job.id, err.message, job.maxAttempts || 3);
     }
   }
 }

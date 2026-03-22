@@ -116,6 +116,18 @@ async function getAccountMedia(account) {
     return cached.data;
   }
 
+  // Evict stale entries to prevent memory growth
+  for (const key in mediaCache) {
+    if (Date.now() - mediaCache[key].fetchedAt > MEDIA_CACHE_TTL * 2) {
+      delete mediaCache[key];
+    }
+  }
+  for (const key in lastCommentFetch) {
+    if (Date.now() / 1000 - lastCommentFetch[key] > 3600) { // 1 hour
+      delete lastCommentFetch[key];
+    }
+  }
+
   try {
     const media = await officialApi.getUserMedia(account.accessToken, account.igUserId);
     mediaCache[account.id] = { data: media, fetchedAt: Date.now() };
@@ -184,23 +196,27 @@ async function processMediaComments(account, mediaItem) {
       if (existingTrigger) continue;
 
       // Layer 2: Same user + same automation (different comment)
+      const userDedupWhere = { automationId: automation.id };
+      if (commenterUserId) {
+        userDedupWhere.OR = [
+          { commenterIgId: commenterUserId },
+          { commenterUsername: commenterUsername }
+        ];
+      } else {
+        userDedupWhere.commenterUsername = commenterUsername;
+      }
       const existingUserTrigger = await prisma.trigger.findFirst({
-        where: {
-          automationId: automation.id,
-          OR: [
-            ...(commenterUserId ? [{ commenterIgId: commenterUserId }] : []),
-            { commenterUsername: commenterUsername }
-          ]
-        }
+        where: userDedupWhere
       });
       if (existingUserTrigger) continue;
 
-      // Layer 3: Already queued DM for this user + account
-      const existingDm = await prisma.dmQueue.findFirst({
+      // Layer 3: Already queued DM for this user + account (check job_queue)
+      const existingDm = await prisma.jobQueue.findFirst({
         where: {
-          igAccountId: account.id,
-          recipientUsername: commenterUsername,
-          status: { in: ['pending', 'processing'] }
+          jobType: 'send_dm',
+          groupKey: account.id,
+          status: { in: ['pending', 'processing'] },
+          payload: { path: ['recipientUsername'], equals: commenterUsername }
         }
       });
       if (existingDm) continue;

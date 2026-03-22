@@ -117,12 +117,14 @@ async function processFollowUps() {
   }
 }
 
+let workerTimer = null;
+
 function start() {
   if (isRunning) return;
   isRunning = true;
   console.log('🔄 [FollowUp] Worker started (checking every 60s, 5min delay, max 2 follow-ups)');
 
-  setInterval(async () => {
+  workerTimer = setInterval(async () => {
     await processFollowUps();
   }, POLL_INTERVAL);
 
@@ -132,6 +134,8 @@ function start() {
 
 function stop() {
   isRunning = false;
+  if (workerTimer) clearInterval(workerTimer);
+  workerTimer = null;
   console.log('🛑 [FollowUp] Worker stopped');
 }
 

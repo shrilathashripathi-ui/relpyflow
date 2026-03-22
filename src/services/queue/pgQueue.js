@@ -39,32 +39,55 @@ async function enqueue(jobType, payload, options = {}) {
  * Dequeue one job — atomic, concurrent-safe via raw SQL with SKIP LOCKED
  */
 async function dequeueOne(jobType) {
-  const result = await prisma.$queryRaw`
-    UPDATE job_queue
-    SET status = 'processing',
-        locked_by = ${WORKER_ID},
-        locked_at = NOW(),
-        attempts = attempts + 1
-    WHERE id = (
-      SELECT jq.id FROM job_queue jq
-      WHERE jq.status = 'pending'
-        AND jq.run_at <= NOW()
-        AND jq.job_type = ${jobType}
-        AND NOT EXISTS (
-          SELECT 1 FROM job_queue jq2
-          WHERE jq2.group_key = jq.group_key
-            AND jq2.group_key IS NOT NULL
-            AND jq2.status = 'processing'
-            AND jq2.id != jq.id
-        )
-      ORDER BY jq.run_at ASC
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING *
-  `;
+  try {
+    const result = await prisma.$queryRaw`
+      UPDATE job_queue
+      SET status = 'processing',
+          locked_by = ${WORKER_ID},
+          locked_at = NOW(),
+          attempts = attempts + 1
+      WHERE id = (
+        SELECT jq.id FROM job_queue jq
+        WHERE jq.status = 'pending'
+          AND jq.run_at <= NOW()
+          AND jq.job_type = ${jobType}
+          AND NOT EXISTS (
+            SELECT 1 FROM job_queue jq2
+            WHERE jq2.group_key = jq.group_key
+              AND jq2.group_key IS NOT NULL
+              AND jq2.status = 'processing'
+              AND jq2.id != jq.id
+          )
+        ORDER BY jq.run_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `;
 
-  return result.length > 0 ? result[0] : null;
+    if (!result || result.length === 0) return null;
+
+    // Normalize snake_case from raw SQL to camelCase for JS consumers
+    const row = result[0];
+    return {
+      id: row.id,
+      jobType: row.job_type,
+      groupKey: row.group_key,
+      payload: row.payload,
+      status: row.status,
+      runAt: row.run_at,
+      lockedBy: row.locked_by,
+      lockedAt: row.locked_at,
+      attempts: row.attempts,
+      maxAttempts: row.max_attempts,
+      lastError: row.last_error,
+      completedAt: row.completed_at,
+      createdAt: row.created_at,
+    };
+  } catch (err) {
+    console.error('❌ [Queue] dequeueOne error:', err.message);
+    return null;
+  }
 }
 
 /**
@@ -115,20 +138,41 @@ async function fail(jobId, error, maxAttempts = 3) {
  */
 async function recoverStale(thresholdMs = 600000) {
   const cutoff = new Date(Date.now() - thresholdMs);
-  const result = await prisma.jobQueue.updateMany({
+
+  // Only recover jobs that haven't exceeded max attempts
+  const staleJobs = await prisma.jobQueue.findMany({
     where: {
       status: 'processing',
       lockedAt: { lt: cutoff }
-    },
-    data: {
-      status: 'pending',
-      lockedBy: null,
-      lockedAt: null,
-      lastError: 'Recovered from stale lock'
     }
   });
-  if (result.count > 0) {
-    console.log(`🔧 [Queue] Recovered ${result.count} stale jobs`);
+
+  for (const job of staleJobs) {
+    if (job.attempts >= job.maxAttempts) {
+      await prisma.jobQueue.update({
+        where: { id: job.id },
+        data: {
+          status: 'failed',
+          lockedBy: null,
+          lockedAt: null,
+          lastError: 'Exceeded max attempts after stale recovery'
+        }
+      });
+    } else {
+      await prisma.jobQueue.update({
+        where: { id: job.id },
+        data: {
+          status: 'pending',
+          lockedBy: null,
+          lockedAt: null,
+          lastError: 'Recovered from stale lock'
+        }
+      });
+    }
+  }
+
+  if (staleJobs.length > 0) {
+    console.log(`🔧 [Queue] Recovered ${staleJobs.length} stale jobs`);
   }
 }
 

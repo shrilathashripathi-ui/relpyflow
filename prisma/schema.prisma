@@ -673,6 +673,7 @@ model JobQueue {
 
   @@index([status, runAt])
   @@index([jobType, groupKey])
+  @@index([status, lockedAt])
   @@map("job_queue")
 }
 
