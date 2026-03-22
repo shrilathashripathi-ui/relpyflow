@@ -30,7 +30,11 @@ router.post('/register', registrationLimiter, registerValidation, async (req, re
 
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      if (exists.emailVerified) {
+        return res.status(400).json({ error: 'An account with this email already exists' });
+      }
+      // Unverified account — delete it so user can re-register
+      await prisma.user.delete({ where: { id: exists.id } });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
