@@ -28,6 +28,7 @@ model User {
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
   instagramAccounts         InstagramAccount[]
+  supportMessages           SupportMessage[]
   automations               Automation[]
   notificationSettings      NotificationSettings?
   subscriptions             Subscription[]
@@ -692,6 +693,24 @@ model PollState {
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   @@map("poll_state")
+}
+
+// ============================================
+// SUPPORT CHAT (user ↔ founder live chat)
+// ============================================
+
+model SupportMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String
+  fromAdmin Boolean  @default(false) @map("from_admin")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("support_messages")
 }
 
 // ============================================

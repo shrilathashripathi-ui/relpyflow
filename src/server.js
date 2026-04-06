@@ -22,6 +22,7 @@ const webhookRoutes = require('./routes/webhook');
 const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
 const debugRoutes = require('./routes/debug');
 const accountHealthRoutes = require('./routes/accountHealth');
+const supportRoutes = require('./routes/support');
 
 // Rate limiting
 const {
@@ -134,6 +135,7 @@ app.use('/webhook', webhookLimiter, webhookRoutes);
 app.use('/api/meta/webhook', webhookLimiter, webhookRoutes);
 app.use('/debug', globalLimiter, debugRoutes);
 app.use('/api/account-health', globalLimiter, accountHealthRoutes);
+app.use('/api/support', globalLimiter, supportRoutes);
 
 // Legal pages
 app.get('/privacy-policy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy-policy.html')));

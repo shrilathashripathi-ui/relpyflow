@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
 import Leads from './pages/Leads';
 import Onboarding from './pages/Onboarding';
+import AdminChat from './pages/AdminChat';
 
 function App() {
   return (
@@ -133,6 +134,16 @@ function App() {
           element={
             <ProtectedRoute>
               <Onboarding />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Chat - founder only */}
+        <Route
+          path="/admin/chat"
+          element={
+            <ProtectedRoute>
+              <AdminChat />
             </ProtectedRoute>
           }
         />

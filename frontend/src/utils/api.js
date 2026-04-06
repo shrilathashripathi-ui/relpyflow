@@ -99,4 +99,15 @@ export const subscriptionAPI = {
   startTrial: () => api.post('/subscription/start-trial'),
 };
 
+// Support chat endpoints
+export const supportAPI = {
+  getMessages: () => api.get('/support/messages'),
+  sendMessage: (message) => api.post('/support/messages', { message }),
+  getUnread: () => api.get('/support/unread'),
+  // Admin endpoints
+  getConversations: () => api.get('/support/admin/conversations'),
+  getAdminMessages: (userId) => api.get(`/support/admin/messages/${userId}`),
+  sendAdminReply: (userId, message) => api.post(`/support/admin/messages/${userId}`, { message }),
+};
+
 export default api;
