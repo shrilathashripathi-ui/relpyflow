@@ -1,19 +1,32 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 465,
-  secure: true, // SSL for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Email is optional. Without SMTP credentials the app still boots; email-dependent
+// flows (OTP verification, password reset) report a clear error until SMTP is configured.
+const isConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+
+const transporter = isConfigured
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 465,
+      secure: true, // SSL for port 465
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  : null;
+
+if (!isConfigured) {
+  console.warn('[email] SMTP_HOST/SMTP_USER/SMTP_PASS not set — email features (OTP, password reset) are disabled.');
+}
 
 /**
  * Send a 6-digit OTP email for email verification
  */
 async function sendOTP(toEmail, otp, type = 'verify') {
+  if (!transporter) {
+    throw new Error('Email is not configured. Set SMTP_HOST, SMTP_USER and SMTP_PASS to enable verification emails.');
+  }
   const isReset = type === 'reset';
   const subject = isReset ? 'Reset Your ReplyFlow Password' : 'Your ReplyFlow Verification Code';
   const heading = isReset ? 'Password Reset' : 'Email Verification';
