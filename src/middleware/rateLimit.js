@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 /**
  * Rate Limiting Middleware
@@ -21,7 +22,9 @@ const rateLimit = require('express-rate-limit');
 const userOrIpKey = (req) => {
   // req.user is set by the protect middleware (JWT auth)
   if (req.user?.id) return `user_${req.user.id}`;
-  return req.ip;
+  // Normalize IP via the helper so IPv6 clients are keyed by subnet, not by a
+  // single address they can trivially rotate to bypass the limit.
+  return ipKeyGenerator(req.ip);
 };
 
 // ─── Global API Limiter ──────────────────────────────────────────

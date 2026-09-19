@@ -6,16 +6,33 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Payments are optional. The app boots fine without Razorpay keys — billing endpoints
+// simply return a clear error until RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are configured.
+const isConfigured = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+
+const razorpay = isConfigured
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    })
+  : null;
+
+if (!isConfigured) {
+  console.warn('[razorpay] RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET not set — payment features are disabled.');
+}
+
+function requireRazorpay() {
+  if (!razorpay) {
+    throw new Error('Payments are not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to enable billing.');
+  }
+  return razorpay;
+}
 
 /**
  * Create a Razorpay Subscription for a user
  */
 async function createSubscription({ planId, totalCount, customerEmail, notes }) {
-  const subscription = await razorpay.subscriptions.create({
+  const subscription = await requireRazorpay().subscriptions.create({
     plan_id: planId,
     total_count: totalCount || 120,
     customer_notify: 0,
@@ -28,14 +45,14 @@ async function createSubscription({ planId, totalCount, customerEmail, notes }) 
  * Cancel a Razorpay Subscription
  */
 async function cancelSubscription(subscriptionId, cancelAtCycleEnd = true) {
-  return await razorpay.subscriptions.cancel(subscriptionId, cancelAtCycleEnd);
+  return await requireRazorpay().subscriptions.cancel(subscriptionId, cancelAtCycleEnd);
 }
 
 /**
  * Fetch subscription details from Razorpay
  */
 async function fetchSubscription(subscriptionId) {
-  return await razorpay.subscriptions.fetch(subscriptionId);
+  return await requireRazorpay().subscriptions.fetch(subscriptionId);
 }
 
 /**
