@@ -3,11 +3,17 @@ node_modules/
 
 # Environment
 .env
+.env.*
 .env.local
 /.env.production
 
-# Allow frontend production env (public API URL only, no secrets)
+# Allow the example and the frontend production env (public API URL only, no secrets)
+!.env.example
 !frontend/.env.production
+
+# Claude Code local settings (may contain machine paths / tokens) and worktrees
+.claude/settings.local.json
+.claude/worktrees/
 
 # Logs
 logs/
